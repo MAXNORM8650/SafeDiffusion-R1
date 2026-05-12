@@ -91,14 +91,17 @@
                 >
                 <img
                   src="assets/img/teaser.png"
-                  alt="SafeDiffusion-R1 teaser showing the safety-utility trade-off across GRPO training variants."
+                  alt="SafeDiffusion-R1 safety-utility trade-off across GRPO reward and anchor variants."
                   width="1600"
                   height="827"
                   decoding="async"
                 >
               </picture>
               <figcaption>
-                Full teaser: online reward steering improves the safety-utility trade-off during diffusion post-training.
+                The curves track HPSv2 over GRPO post-training for different reward and anchor designs, with
+                GenEval, Nudity Rate, and Inappropriate rate annotated at key checkpoints. Static baselines
+                show SD v1.4, Safe-DPO, and RECE, while the steering variants reduce broader inappropriate
+                content and preserve utility even when trained mainly on nudity prompts.
               </figcaption>
             </figure>
 
