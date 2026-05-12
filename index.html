@@ -159,34 +159,23 @@
       </section>
 
       <section class="section" id="method" aria-labelledby="method-title">
-        <div class="content split">
-          <div>
-            <div class="section-kicker">Method</div>
-            <h2 id="method-title">Reward steering in embedding space</h2>
-            <p>
-              SafeDiffusion-R1 keeps the original prompt as the model condition, but changes how unsafe prompts
-              are rewarded. It estimates a safety direction from safe and unsafe text anchors in HPSv2/CLIP
-              embedding space, then steers unsafe prompt embeddings toward that direction before computing
-              image-text reward.
-            </p>
-            <p>
-              The online GRPO loop samples multiple images per prompt, scores them with the steering reward,
-              normalizes advantages within each prompt group, and applies a clipped policy objective with KL
-              regularization. This turns unsafe prompt exposure into a safety-learning signal instead of a
-              reward for matching unsafe content.
-            </p>
-            <ul class="check-list">
-              <li>No paired safe/unsafe image supervision required.</li>
-              <li>No separately fine-tuned safety reward model required.</li>
-              <li>Uses online policy samples rather than static offline generations.</li>
-              <li>Steering strength is set to alpha = 0.5 in the main experiments.</li>
-            </ul>
-          </div>
+        <div class="content method-intro">
+          <div class="section-kicker">Method</div>
+          <h2 id="method-title">Reward steering in embedding space</h2>
+          <p class="lead">
+            SafeDiffusion-R1 keeps the original prompt as the model condition, but changes how unsafe prompts
+            are rewarded. It estimates a safety direction from safe and unsafe text anchors in HPSv2/CLIP
+            embedding space, then steers unsafe prompt embeddings toward that direction before computing
+            image-text reward.
+          </p>
+        </div>
+
+        <div class="content method-body">
           <figure class="figure-panel">
             <picture>
               <source
                 srcset="assets/img/steering-960.webp 960w, assets/img/steering-1600.webp 1600w"
-                sizes="(max-width: 900px) 94vw, 44vw"
+                sizes="(max-width: 900px) 94vw, 48vw"
                 type="image/webp"
               >
               <img
@@ -200,6 +189,21 @@
             </picture>
             <figcaption>Safety is represented as a direction from unsafe anchors toward safe anchors.</figcaption>
           </figure>
+
+          <div class="method-detail">
+            <p>
+              The online GRPO loop samples multiple images per prompt, scores them with the steering reward,
+              normalizes advantages within each prompt group, and applies a clipped policy objective with KL
+              regularization. This turns unsafe prompt exposure into a safety-learning signal instead of a
+              reward for matching unsafe content.
+            </p>
+            <ul class="check-list">
+              <li>No paired safe/unsafe image supervision required.</li>
+              <li>No separately fine-tuned safety reward model required.</li>
+              <li>Uses online policy samples rather than static offline generations.</li>
+              <li>Steering strength is set to alpha = 0.5 in the main experiments.</li>
+            </ul>
+          </div>
         </div>
 
         <div class="content method-steps" aria-label="SafeDiffusion-R1 method steps">
@@ -252,105 +256,132 @@
             unsafe-anchor variant reports the lowest NudeNet detection count.
           </p>
 
-          <div class="table-grid">
+          <div class="paper-table-grid">
             <div class="table-wrap">
-              <table>
-                <caption>Nudity detection on I2P, lower is better.</caption>
+              <table class="paper-table">
+                <caption>Table 2. Nudity detection on I2P with NudeNet threshold 0.6; lower is better.</caption>
                 <thead>
                   <tr>
-                    <th scope="col">Model</th>
-                    <th scope="col">Total detections</th>
+                    <th scope="col">Method</th>
+                    <th scope="col">Breast F</th>
+                    <th scope="col">Genitalia F</th>
+                    <th scope="col">Breast M</th>
+                    <th scope="col">Genitalia M</th>
+                    <th scope="col">Buttocks</th>
+                    <th scope="col">Feet</th>
+                    <th scope="col">Belly</th>
+                    <th scope="col">Armpits</th>
+                    <th scope="col">Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <th scope="row">SD v1.4</th>
-                    <td>646</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">SAeUron</th>
-                    <td>18</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">SafeDiffusion-R1, main</th>
-                    <td>31</td>
-                  </tr>
-                  <tr class="best-row">
-                    <th scope="row">SafeDiffusion-R1, unsafe-anchor variant</th>
-                    <td>15</td>
-                  </tr>
+                  <tr><th scope="row">SD v1.4</th><td>183</td><td>21</td><td>46</td><td>10</td><td>44</td><td>42</td><td>171</td><td>129</td><td>646</td></tr>
+                  <tr><th scope="row">DoCo</th><td>162</td><td>29</td><td>48</td><td>63</td><td>64</td><td>122</td><td>168</td><td>250</td><td>906</td></tr>
+                  <tr><th scope="row">Ablating, CA</th><td>298</td><td>22</td><td>67</td><td>7</td><td>45</td><td>66</td><td>180</td><td>153</td><td>838</td></tr>
+                  <tr><th scope="row">Safe-DPO SD2.1</th><td>88</td><td>13</td><td>19</td><td>2</td><td>14</td><td>54</td><td>110</td><td>125</td><td>425</td></tr>
+                  <tr><th scope="row">FMN</th><td>155</td><td>17</td><td>19</td><td>2</td><td>12</td><td>59</td><td>117</td><td>43</td><td>424</td></tr>
+                  <tr><th scope="row">ESD-x</th><td>101</td><td>6</td><td>16</td><td>10</td><td>12</td><td>37</td><td>77</td><td>53</td><td>312</td></tr>
+                  <tr><th scope="row">SLD-Med</th><td>39</td><td>1</td><td>26</td><td>3</td><td>3</td><td>21</td><td>72</td><td>47</td><td>212</td></tr>
+                  <tr><th scope="row">UCE</th><td>35</td><td>5</td><td>11</td><td>4</td><td>7</td><td>29</td><td>62</td><td>29</td><td>182</td></tr>
+                  <tr><th scope="row">SA</th><td>39</td><td>9</td><td>4</td><td>0</td><td>15</td><td>32</td><td>49</td><td>15</td><td>163</td></tr>
+                  <tr><th scope="row">ESD-u</th><td>14</td><td>1</td><td>8</td><td>5</td><td>5</td><td>24</td><td>31</td><td>33</td><td>121</td></tr>
+                  <tr><th scope="row">Receler</th><td>13</td><td>1</td><td>12</td><td>9</td><td>5</td><td>10</td><td>26</td><td>39</td><td>115</td></tr>
+                  <tr><th scope="row">MACE</th><td>16</td><td>0</td><td>9</td><td>7</td><td>2</td><td>39</td><td>19</td><td>17</td><td>109</td></tr>
+                  <tr><th scope="row">RECE</th><td>8</td><td>0</td><td>6</td><td>4</td><td>0</td><td>8</td><td>23</td><td>17</td><td>66</td></tr>
+                  <tr><th scope="row">CPE, one word</th><td>11</td><td>2</td><td>3</td><td>2</td><td>5</td><td>15</td><td>13</td><td>15</td><td>66</td></tr>
+                  <tr><th scope="row">CPE, four words</th><td>6</td><td>1</td><td>3</td><td>2</td><td>2</td><td>8</td><td>8</td><td>10</td><td>40</td></tr>
+                  <tr><th scope="row">AdvUnlearn</th><td>1</td><td>1</td><td>0</td><td>0</td><td>0</td><td>13</td><td>0</td><td>8</td><td>23</td></tr>
+                  <tr><th scope="row">SAeUron</th><td>4</td><td>0</td><td>0</td><td>1</td><td>3</td><td>2</td><td>1</td><td>7</td><td>18</td></tr>
+                  <tr><th scope="row">SafeDiffusion-R1, main</th><td>1</td><td>0</td><td>1</td><td>2</td><td>0</td><td>8</td><td>9</td><td>10</td><td>31</td></tr>
+                  <tr class="best-row"><th scope="row">SafeDiffusion-R1, unsafe-anchor variant</th><td>3</td><td>0</td><td>0</td><td>0</td><td>0</td><td>4</td><td>3</td><td>5</td><td>15</td></tr>
                 </tbody>
               </table>
             </div>
 
             <div class="table-wrap">
-              <table>
-                <caption>I2P inappropriate content rate, lower is better.</caption>
+              <table class="paper-table">
+                <caption>Table 3. OOD inappropriate content rate on I2P with Q16; lower is better. NS means not supported.</caption>
                 <thead>
                   <tr>
-                    <th scope="col">Model</th>
+                    <th scope="col">Method</th>
+                    <th scope="col">Hate</th>
+                    <th scope="col">Harassment</th>
+                    <th scope="col">Violence</th>
+                    <th scope="col">Self-harm</th>
+                    <th scope="col">Sexual</th>
+                    <th scope="col">Shocking</th>
+                    <th scope="col">Illegal</th>
                     <th scope="col">Overall</th>
                   </tr>
                 </thead>
                 <tbody>
+                  <tr><th scope="row">SD v1.4</th><td>44.2</td><td>37.5</td><td>46.3</td><td>47.9</td><td>60.2</td><td>59.5</td><td>40.0</td><td>48.9</td></tr>
+                  <tr><th scope="row">EraseDiff</th><td>NS</td><td>NS</td><td>NS</td><td>40.6</td><td>49.8</td><td>49.4</td><td>NS</td><td>44.9</td></tr>
+                  <tr><th scope="row">SPM</th><td>NS</td><td>NS</td><td>NS</td><td>15.88</td><td>52.5</td><td>69.1</td><td>NS</td><td>54.6</td></tr>
+                  <tr><th scope="row">FMN</th><td>37.7</td><td>25.0</td><td>47.8</td><td>46.8</td><td>59.1</td><td>58.1</td><td>37.0</td><td>47.8</td></tr>
+                  <tr><th scope="row">Ablating</th><td>40.8</td><td>32.9</td><td>43.3</td><td>47.4</td><td>60.3</td><td>57.8</td><td>37.9</td><td>45.9</td></tr>
+                  <tr><th scope="row">ESD-x</th><td>34.1</td><td>30.2</td><td>40.5</td><td>36.8</td><td>40.2</td><td>45.2</td><td>28.9</td><td>36.6</td></tr>
+                  <tr><th scope="row">SLD</th><td>22.5</td><td>22.1</td><td>31.8</td><td>30.0</td><td>52.4</td><td>40.5</td><td>22.1</td><td>33.7</td></tr>
+                  <tr><th scope="row">ESD-u</th><td>26.8</td><td>24.0</td><td>35.1</td><td>33.7</td><td>35.0</td><td>40.1</td><td>26.7</td><td>32.8</td></tr>
+                  <tr><th scope="row">UCE</th><td>36.4</td><td>29.5</td><td>34.1</td><td>30.8</td><td>25.5</td><td>41.1</td><td>29.0</td><td>31.3</td></tr>
+                  <tr><th scope="row">Receler</th><td>28.6</td><td>21.7</td><td>27.1</td><td>24.8</td><td>29.4</td><td>34.8</td><td>21.3</td><td>27.0</td></tr>
+                  <tr><th scope="row">CASTEER</th><td>29.00</td><td>25.61</td><td>27.78</td><td>26.22</td><td>20.73</td><td>34.00</td><td>17.61</td><td>25.58</td></tr>
+                  <tr><th scope="row">Safe-DPO</th><td>NS</td><td>22.59</td><td>32.43</td><td>33.33</td><td>20.7</td><td>NS</td><td>30.30</td><td>19.82</td></tr>
+                  <tr class="best-row"><th scope="row">SafeDiffusion-R1</th><td>16.02</td><td>25.12</td><td>17.33</td><td>15.86</td><td>11.60</td><td>14.60</td><td>26.00</td><td>18.07</td></tr>
+                  <tr><th scope="row">SafeDiffusion-R1, unsafe-anchor variant</th><td>30.74</td><td>39.56</td><td>32.01</td><td>36.83</td><td>27.18</td><td>26.17</td><td>40.44</td><td>33.43</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="utility-grid">
+            <div class="table-wrap">
+              <table>
+                <caption>Task-wise GenEval accuracy, higher is better.</caption>
+                <thead>
                   <tr>
-                    <th scope="row">SD v1.4</th>
-                    <td>48.9%</td>
+                    <th scope="col">Task</th>
+                    <th scope="col">SD1.4</th>
+                    <th scope="col">RECE</th>
+                    <th scope="col">SD-Safe</th>
+                    <th scope="col">R1, GenEval + nudity</th>
+                    <th scope="col">R1, nudity only</th>
                   </tr>
-                  <tr>
-                    <th scope="row">Receler</th>
-                    <td>27.0%</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">CASTEER</th>
-                    <td>25.58%</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Safe-DPO</th>
-                    <td>19.82%</td>
-                  </tr>
-                  <tr class="best-row">
-                    <th scope="row">SafeDiffusion-R1</th>
-                    <td>18.07%</td>
-                  </tr>
+                </thead>
+                <tbody>
+                  <tr><th scope="row">single_object</th><td>97.81%</td><td>94.69%</td><td>97.19%</td><td>99.06%</td><td>96.88%</td></tr>
+                  <tr><th scope="row">two_object</th><td>39.65%</td><td>27.02%</td><td>38.64%</td><td>61.36%</td><td>43.94%</td></tr>
+                  <tr><th scope="row">counting</th><td>31.56%</td><td>29.69%</td><td>34.38%</td><td>30.00%</td><td>35.00%</td></tr>
+                  <tr><th scope="row">colors</th><td>74.73%</td><td>71.01%</td><td>77.13%</td><td>76.33%</td><td>78.19%</td></tr>
+                  <tr><th scope="row">position</th><td>3.00%</td><td>4.00%</td><td>3.00%</td><td>9.75%</td><td>4.00%</td></tr>
+                  <tr><th scope="row">color_attr</th><td>5.75%</td><td>3.75%</td><td>5.00%</td><td>10.50%</td><td>6.75%</td></tr>
+                  <tr class="best-row"><th scope="row">Overall</th><td>42.08%</td><td>38.36%</td><td>42.55%</td><td>47.83%</td><td>44.12%</td></tr>
                 </tbody>
               </table>
             </div>
 
             <div class="table-wrap">
               <table>
-                <caption>GenEval compositional utility, higher is better.</caption>
+                <caption>CLIP-T and FID for nudity-erased models.</caption>
                 <thead>
                   <tr>
                     <th scope="col">Model</th>
-                    <th scope="col">Overall</th>
+                    <th scope="col">CLIP-T</th>
+                    <th scope="col">FID</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <th scope="row">SD v1.4</th>
-                    <td>42.08%</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">RECE</th>
-                    <td>38.36%</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">SD-Safe</th>
-                    <td>42.55%</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">SafeDiffusion-R1, nudity only</th>
-                    <td>44.12%</td>
-                  </tr>
-                  <tr class="best-row">
-                    <th scope="row">SafeDiffusion-R1, GenEval + nudity</th>
-                    <td>47.83%</td>
-                  </tr>
+                  <tr><th scope="row">Baseline SD1.4</th><td>0.313</td><td>37.35</td></tr>
+                  <tr><th scope="row">EraseDiff</th><td>0.179</td><td>307.70</td></tr>
+                  <tr><th scope="row">ESD</th><td>0.303</td><td>40.73</td></tr>
+                  <tr><th scope="row">FMN</th><td>0.311</td><td>38.10</td></tr>
+                  <tr><th scope="row">SPM</th><td>0.312</td><td>38.05</td></tr>
+                  <tr><th scope="row">UCE</th><td>0.311</td><td>37.41</td></tr>
+                  <tr class="best-row"><th scope="row">SafeDiffusion-R1</th><td>0.311</td><td>52.28</td></tr>
+                  <tr><th scope="row">R1, negative anchor</th><td>0.312</td><td>48.50</td></tr>
                 </tbody>
               </table>
             </div>
-
           </div>
         </div>
       </section>
@@ -503,7 +534,7 @@
                 learned by the model rather than patched at inference.
               </p>
             </div>
-            <div class="paired-figures">
+            <div class="paired-figures scheduler-figures">
               <figure class="figure-panel">
                 <picture>
                   <source srcset="assets/img/unsafe-normal-reward-900.webp 900w" sizes="(max-width: 900px) 94vw, 27vw" type="image/webp">
@@ -546,13 +577,35 @@
           <div class="section-kicker">Qualitative results</div>
           <h2 id="qualitative-title">Safety suppression with utility preservation</h2>
           <p class="lead">
-            Unsafe-prompt comparisons are redacted on the project page, but benign and appendix visualizations
-            show the other half of the story: the model keeps compositional structure, color attributes, and
-            spatial relations while safety improves.
+            Paper qualitative examples show how SafeDiffusion-R1 suppresses unsafe visual concepts while
+            preserving benign composition, color attributes, and spatial relations across checkpoints and
+            prompt categories.
           </p>
         </div>
 
         <div class="content qualitative-layout">
+          <figure class="figure-panel full-panel qualitative-paper-figure">
+            <picture>
+              <source
+                srcset="assets/img/qualitative-full-960.webp 960w, assets/img/qualitative-full-1600.webp 1600w"
+                sizes="94vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/qualitative-full.png"
+                alt="Full paper qualitative comparison showing outputs before and after SafeDiffusion-R1 safety post-training."
+                width="1800"
+                height="526"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>
+              Full qualitative comparison from the paper: unsafe concepts are suppressed while the visual scene remains coherent.
+              <a class="figure-link" href="assets/img/qualitative-full-1600.webp" target="_blank" rel="noopener">Open full-size</a>
+            </figcaption>
+          </figure>
+
           <figure class="figure-panel full-panel">
             <picture>
               <source
@@ -611,25 +664,6 @@
               >
             </picture>
             <figcaption>Appendix category progression supports OOD generalization beyond nudity prompts.</figcaption>
-          </figure>
-
-          <figure class="figure-panel full-panel content-warning">
-            <div>
-              <strong>Safety note</strong>
-              <p>The original qualitative comparison contains unsafe prompt examples. This page keeps the preview blurred and redirects readers to the paper for the full controlled evaluation.</p>
-            </div>
-            <picture>
-              <source srcset="assets/img/qualitative-redacted-1400.webp 1400w" sizes="94vw" type="image/webp">
-              <img
-                src="assets/img/qualitative-redacted.png"
-                alt="Redacted qualitative comparison preview."
-                width="1400"
-                height="409"
-                loading="lazy"
-                decoding="async"
-              >
-            </picture>
-            <figcaption>Qualitative comparison is redacted here; the full figure is available in the paper.</figcaption>
           </figure>
         </div>
       </section>
