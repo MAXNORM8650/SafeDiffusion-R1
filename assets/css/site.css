@@ -720,6 +720,13 @@ tbody tr:last-child td {
   margin-top: 2rem;
 }
 
+.figure-note {
+  max-width: 1080px;
+  margin: 1rem 0 0;
+  color: #486266;
+  font-size: 1.03rem;
+}
+
 .full-panel {
   grid-column: 1 / -1;
 }
