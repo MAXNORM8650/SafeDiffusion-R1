@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SafeDiffusion-R1 | Online Reward Steering for Safe Diffusion Post-Training</title>
+    <meta
+      name="description"
+      content="SafeDiffusion-R1 is an online GRPO post-training framework for safer text-to-image diffusion models using geometry-aware CLIP/HPSv2 reward steering."
+    >
+    <meta name="theme-color" content="#0f766e">
+    <link rel="stylesheet" href="assets/css/site.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <nav class="nav-shell" aria-label="Primary">
+        <a class="brand" href="#top" aria-label="SafeDiffusion-R1 home">
+          <span class="brand-mark" aria-hidden="true">S</span>
+          <span>SafeDiffusion-R1</span>
+        </a>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+          <span class="sr-only">Toggle navigation</span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </button>
+        <div class="nav-links" id="site-nav">
+          <a href="#method">Method</a>
+          <a href="#results">Results</a>
+          <a href="#ablation">Ablation</a>
+          <a href="#qualitative">Qualitative</a>
+          <a href="#citation">Citation</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top" aria-labelledby="page-title">
+        <div class="hero-inner">
+          <div class="hero-copy">
+            <p class="eyebrow">Safe text-to-image diffusion post-training</p>
+            <h1 id="page-title">SafeDiffusion-R1: Online Reward Steering for Safe Diffusion Post-Training</h1>
+            <p class="hero-summary">
+              Online GRPO with geometry-aware reward steering in CLIP/HPSv2 space for safer
+              diffusion models without paired safe/unsafe image supervision or reward model fine-tuning.
+            </p>
+
+            <div class="authors" aria-label="Authors">
+              <span>Komal Kumar<sup>1</sup></span>
+              <span>Ankan Deria<sup>1</sup></span>
+              <span>Abhishek Basu<sup>1</sup></span>
+              <span>Fahad Shamshad<sup>1</sup></span>
+              <span>Hisham Cholakkal<sup>1</sup></span>
+              <span>Karthik Nandakumar<sup>1,2</sup></span>
+            </div>
+
+            <div class="affiliations">
+              <span><sup>1</sup>Mohamed bin Zayed University of Artificial Intelligence, UAE</span>
+              <span><sup>2</sup>Michigan State University, USA</span>
+            </div>
+
+            <div class="logo-row" aria-label="Affiliations">
+              <img
+                src="data:image/png;base64,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"
+                alt="MBZUAI logo"
+                width="194"
+                height="65"
+              >
+              <img
+                src="data:image/png;base64,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"
+                alt="Michigan State University logo"
+                width="150"
+                height="84"
+              >
+            </div>
+
+            <div class="actions" aria-label="Project links">
+              <a class="button primary" href="assets/papers/safediff-r1.pdf">Paper</a>
+              <span class="button is-disabled" aria-disabled="true" title="Code link will be added when released.">Code</span>
+              <span class="button is-disabled" aria-disabled="true" title="Hugging Face checkpoint link will be added when released.">HF Checkpoint</span>
+            </div>
+
+            <figure class="hero-figure">
+              <picture>
+                <source
+                  srcset="assets/img/teaser-960.webp 960w, assets/img/teaser-1600.webp 1600w"
+                  sizes="(max-width: 900px) 94vw, 1120px"
+                  type="image/webp"
+                >
+                <img
+                  src="assets/img/teaser.png"
+                  alt="SafeDiffusion-R1 teaser showing the safety-utility trade-off across GRPO training variants."
+                  width="1600"
+                  height="827"
+                  decoding="async"
+                >
+              </picture>
+              <figcaption>
+                Full teaser: online reward steering improves the safety-utility trade-off during diffusion post-training.
+              </figcaption>
+            </figure>
+
+            <div class="hero-card" aria-label="Project summary">
+              <h2>TL;DR</h2>
+              <p>
+                SafeDiffusion-R1 safely unlearns unsafe visual concepts by steering the reward target,
+                not by filtering prompts or training a separate safety classifier. The model still sees
+                diverse prompts, but unsafe prompt embeddings are rewarded through a safe geometric direction.
+              </p>
+              <div class="hero-metrics">
+                <div>
+                  <strong>18.07%</strong>
+                  <span>Inappropriate content<br>down from 48.9%</span>
+                </div>
+                <div>
+                  <strong>31 / 15</strong>
+                  <span>NudeNet detections<br>main / aggressive variant</span>
+                </div>
+                <div>
+                  <strong>47.83%</strong>
+                  <span>GenEval utility<br>up from 42.08%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="section metrics-band" aria-labelledby="headline-results">
+        <div class="content">
+          <div class="section-kicker">Headline results</div>
+          <h2 id="headline-results">Safer generations without sacrificing compositional utility</h2>
+          <div class="metric-grid">
+            <article class="metric-card">
+              <span class="metric-value">48.9% -> 18.07%</span>
+              <span class="metric-label">I2P inappropriate rate</span>
+              <p>Q16 overall inappropriate content rate for SD v1.4 compared with the main SafeDiffusion-R1 configuration.</p>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">646 -> 31</span>
+              <span class="metric-label">NudeNet detections</span>
+              <p>Main reported model on I2P nudity detection, using the paper's threshold 0.6 protocol.</p>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">646 -> 15</span>
+              <span class="metric-label">Aggressive unsafe-anchor variant</span>
+              <p>Lowest NudeNet detection count, with the paper's noted trade-off in broader OOD safety.</p>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">42.08% -> 47.83%</span>
+              <span class="metric-label">GenEval overall</span>
+              <p>Compositional generation improves when post-training with GenEval and nudity prompts.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="method" aria-labelledby="method-title">
+        <div class="content split">
+          <div>
+            <div class="section-kicker">Method</div>
+            <h2 id="method-title">Reward steering in embedding space</h2>
+            <p>
+              SafeDiffusion-R1 keeps the original prompt as the model condition, but changes how unsafe prompts
+              are rewarded. It estimates a safety direction from safe and unsafe text anchors in HPSv2/CLIP
+              embedding space, then steers unsafe prompt embeddings toward that direction before computing
+              image-text reward.
+            </p>
+            <p>
+              The online GRPO loop samples multiple images per prompt, scores them with the steering reward,
+              normalizes advantages within each prompt group, and applies a clipped policy objective with KL
+              regularization. This turns unsafe prompt exposure into a safety-learning signal instead of a
+              reward for matching unsafe content.
+            </p>
+            <ul class="check-list">
+              <li>No paired safe/unsafe image supervision required.</li>
+              <li>No separately fine-tuned safety reward model required.</li>
+              <li>Uses online policy samples rather than static offline generations.</li>
+              <li>Steering strength is set to alpha = 0.5 in the main experiments.</li>
+            </ul>
+          </div>
+          <figure class="figure-panel">
+            <picture>
+              <source
+                srcset="assets/img/steering-960.webp 960w, assets/img/steering-1600.webp 1600w"
+                sizes="(max-width: 900px) 94vw, 44vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/steering.png"
+                alt="Embedding-space safety steering diagram showing unsafe text embeddings shifted toward a safe direction."
+                width="1600"
+                height="778"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>Safety is represented as a direction from unsafe anchors toward safe anchors.</figcaption>
+          </figure>
+        </div>
+
+        <div class="content method-steps" aria-label="SafeDiffusion-R1 method steps">
+          <article>
+            <span>01</span>
+            <h3>Build a safety direction</h3>
+            <p>Safe and unsafe anchor phrases are embedded with HPSv2/CLIP; their normalized mean difference defines <code>v_safe</code>.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Steer reward targets</h3>
+            <p>Unsafe prompt embeddings are shifted toward <code>v_safe</code> only for reward computation, while the diffusion model still receives the original prompt.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Optimize on-policy</h3>
+            <p>GRPO samples multiple images per prompt, normalizes rewards within each prompt group, and updates the policy with tight clipping plus KL control.</p>
+          </article>
+        </div>
+
+        <div class="content wide-figure">
+          <figure>
+            <picture>
+              <source
+                srcset="assets/img/method-pipeline-960.webp 960w, assets/img/method-pipeline-1600.webp 1600w"
+                sizes="94vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/method-pipeline-1600.webp"
+                alt="SafeDiffusion-R1 GRPO reward steering pipeline from prompts and anchors to steered rewards and policy loss."
+                width="1600"
+                height="872"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>Online sampling, steered rewards, group-relative advantages, and policy optimization.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section results-band" id="results" aria-labelledby="results-title">
+        <div class="content">
+          <div class="section-kicker">Results</div>
+          <h2 id="results-title">Safety and utility benchmarks</h2>
+          <p class="lead">
+            SafeDiffusion-R1 is evaluated on I2P safety metrics and GenEval compositional utility.
+            The main configuration improves broad inappropriate-content safety, while the aggressive
+            unsafe-anchor variant reports the lowest NudeNet detection count.
+          </p>
+
+          <div class="table-grid">
+            <div class="table-wrap">
+              <table>
+                <caption>Nudity detection on I2P, lower is better.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Model</th>
+                    <th scope="col">Total detections</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">SD v1.4</th>
+                    <td>646</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">SAeUron</th>
+                    <td>18</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">SafeDiffusion-R1, main</th>
+                    <td>31</td>
+                  </tr>
+                  <tr class="best-row">
+                    <th scope="row">SafeDiffusion-R1, unsafe-anchor variant</th>
+                    <td>15</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <caption>I2P inappropriate content rate, lower is better.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Model</th>
+                    <th scope="col">Overall</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">SD v1.4</th>
+                    <td>48.9%</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Receler</th>
+                    <td>27.0%</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">CASTEER</th>
+                    <td>25.58%</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Safe-DPO</th>
+                    <td>19.82%</td>
+                  </tr>
+                  <tr class="best-row">
+                    <th scope="row">SafeDiffusion-R1</th>
+                    <td>18.07%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <caption>GenEval compositional utility, higher is better.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Model</th>
+                    <th scope="col">Overall</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">SD v1.4</th>
+                    <td>42.08%</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">RECE</th>
+                    <td>38.36%</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">SD-Safe</th>
+                    <td>42.55%</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">SafeDiffusion-R1, nudity only</th>
+                    <td>44.12%</td>
+                  </tr>
+                  <tr class="best-row">
+                    <th scope="row">SafeDiffusion-R1, GenEval + nudity</th>
+                    <td>47.83%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="ablation" aria-labelledby="ablation-title">
+        <div class="content">
+          <div class="section-kicker">Ablation</div>
+          <h2 id="ablation-title">Why steering reward is the stable choice</h2>
+          <p class="lead">
+            The paper studies scheduler choice, reward design, anchor construction, and steering strength.
+            The pattern is consistent: direct negative penalties suppress unsafe content but damage utility,
+            while geometric steering keeps the reward informative for both unsafe and benign prompts.
+          </p>
+        </div>
+
+        <div class="content insight-grid">
+          <article class="insight-card">
+            <span class="insight-number">0.002</span>
+            <h3>Lowest MeanUnsafe</h3>
+            <p>Steering reward reaches MeanUnsafe 0.002 while keeping CLIP-T at 28.74, outperforming SafeCLIP and LLaVA-penalty variants.</p>
+          </article>
+          <article class="insight-card">
+            <span class="insight-number">alpha = 0.5</span>
+            <h3>Moderate steering</h3>
+            <p>The default steering strength improves safety while preserving the gap between safe and unsafe prompt clusters.</p>
+          </article>
+          <article class="insight-card">
+            <span class="insight-number">9 schedulers</span>
+            <h3>Robust inference</h3>
+            <p>With safety steering, multiple schedulers converge toward near-zero unsafe score by epoch 300.</p>
+          </article>
+        </div>
+
+        <div class="content ablation-table">
+          <div class="table-wrap">
+            <table>
+              <caption>Reward design ablation, lower MeanUnsafe is better.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Reward</th>
+                  <th scope="col">CLIP-T</th>
+                  <th scope="col">MeanUnsafe</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Base SD v1.4</th>
+                  <td>27.07</td>
+                  <td>0.990</td>
+                </tr>
+                <tr>
+                  <th scope="row">SafeCLIP, 7K positive</th>
+                  <td>28.76</td>
+                  <td>0.246</td>
+                </tr>
+                <tr>
+                  <th scope="row">SafeCLIP + LLaVA penalty</th>
+                  <td>28.44</td>
+                  <td>0.151</td>
+                </tr>
+                <tr>
+                  <th scope="row">-1 x CLIP, negative only</th>
+                  <td>23.31</td>
+                  <td>0.018</td>
+                </tr>
+                <tr class="best-row">
+                  <th scope="row">Steering reward</th>
+                  <td>28.74</td>
+                  <td>0.002</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="content ablation-stack">
+          <article class="story-block">
+            <div class="story-copy">
+              <div class="section-kicker">Steering strength</div>
+              <h3>Anchors move prompts toward safety without collapsing geometry</h3>
+              <p>
+                UMAP visualizations show that synonyms, keyword-minimal prompts, and negations are all pushed
+                toward the safe side as steering strength increases. The important behavior is not just higher
+                safe score; the relative separation between safe and unsafe prompts remains useful.
+              </p>
+            </div>
+            <figure class="figure-panel wide-panel">
+              <picture>
+                <source
+                  srcset="assets/img/steering-analysis-960.webp 960w, assets/img/steering-analysis-1600.webp 1600w"
+                  sizes="(max-width: 900px) 94vw, 56vw"
+                  type="image/webp"
+                >
+                <img
+                  src="assets/img/steering-analysis-1600.webp"
+                  alt="UMAP and safety score analysis for steering strength across prompt perturbation strategies."
+                  width="1600"
+                  height="661"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </picture>
+              <figcaption>
+                Prompt steering remains consistent across synonyms, minimal keywords, and negation.
+                <a class="figure-link" href="assets/img/steering-analysis-1600.webp" target="_blank" rel="noopener">Open full-size</a>
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="story-block reverse">
+            <div class="story-copy">
+              <div class="section-kicker">Reward design</div>
+              <h3>Negative-only reward is safe but not useful</h3>
+              <p>
+                A pure negative CLIP penalty can drive unsafe score down, but the appendix shows utility collapse:
+                CLIP-T drops to 23.31 and FID rises to 167.49. Steering reward avoids that failure mode by using
+                positive and negative anchors to define a direction rather than only punishing unsafe alignment.
+              </p>
+            </div>
+            <figure class="figure-panel wide-panel">
+              <picture>
+                <source
+                  srcset="assets/img/safeclip-utility-960.webp 960w, assets/img/safeclip-utility-1600.webp 1600w"
+                  sizes="(max-width: 900px) 94vw, 56vw"
+                  type="image/webp"
+                >
+                <img
+                  src="assets/img/safeclip-utility.png"
+                  alt="Utility comparison of SafeCLIP variants and steering reward on benign prompts."
+                  width="1600"
+                  height="543"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </picture>
+            <figcaption>
+              Appendix utility comparison: steering reward preserves benign prompt quality more reliably than weaker reward variants.
+              <a class="figure-link" href="assets/img/safeclip-utility-1600.webp" target="_blank" rel="noopener">Open full-size</a>
+            </figcaption>
+            </figure>
+          </article>
+
+          <article class="story-block">
+            <div class="story-copy">
+              <div class="section-kicker">Schedulers</div>
+              <h3>Safety becomes less sensitive to sampler choice</h3>
+              <p>
+                Without steering, unsafe scores remain high and scheduler-dependent. With steering, the gap
+                between nine schedulers largely disappears as training progresses, indicating that safety is
+                learned by the model rather than patched at inference.
+              </p>
+            </div>
+            <div class="paired-figures">
+              <figure class="figure-panel">
+                <picture>
+                  <source srcset="assets/img/unsafe-normal-reward-900.webp 900w" sizes="(max-width: 900px) 94vw, 27vw" type="image/webp">
+                  <img
+                    src="assets/img/unsafe-normal-reward.png"
+                    alt="Unsafe score without safety steering stays high across training."
+                    width="900"
+                    height="825"
+                    loading="lazy"
+                    decoding="async"
+                  >
+                </picture>
+                <figcaption>Without steering, unsafe score remains high.</figcaption>
+              </figure>
+              <figure class="figure-panel">
+                <picture>
+                  <source
+                    srcset="assets/img/scheduler-ablation-960.webp 960w, assets/img/scheduler-ablation-1200.webp 1200w"
+                    sizes="(max-width: 900px) 94vw, 27vw"
+                    type="image/webp"
+                  >
+                  <img
+                    src="assets/img/scheduler-ablation.png"
+                    alt="Scheduler ablation showing unsafe score decreases over training epochs for multiple schedulers."
+                    width="1200"
+                    height="739"
+                    loading="lazy"
+                    decoding="async"
+                  >
+                </picture>
+                <figcaption>With steering, schedulers converge near zero.</figcaption>
+              </figure>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section qualitative-band" id="qualitative" aria-labelledby="qualitative-title">
+        <div class="content">
+          <div class="section-kicker">Qualitative results</div>
+          <h2 id="qualitative-title">Safety suppression with utility preservation</h2>
+          <p class="lead">
+            Unsafe-prompt comparisons are redacted on the project page, but benign and appendix visualizations
+            show the other half of the story: the model keeps compositional structure, color attributes, and
+            spatial relations while safety improves.
+          </p>
+        </div>
+
+        <div class="content qualitative-layout">
+          <figure class="figure-panel full-panel">
+            <picture>
+              <source
+                srcset="assets/img/geneval-qualitative-960.webp 960w, assets/img/geneval-qualitative-1600.webp 1600w"
+                sizes="94vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/geneval-qualitative.png"
+                alt="Benign GenEval qualitative comparison showing compositional prompt outputs across methods."
+                width="1600"
+                height="756"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>
+              Benign GenEval-style prompts: SafeDiffusion-R1 keeps semantic structure and visual coherence.
+              <a class="figure-link" href="assets/img/geneval-qualitative-1600.webp" target="_blank" rel="noopener">Open full-size</a>
+            </figcaption>
+          </figure>
+
+          <figure class="figure-panel">
+            <picture>
+              <source
+                srcset="assets/img/steering-utility-960.webp 960w, assets/img/steering-utility-1600.webp 1600w"
+                sizes="(max-width: 900px) 94vw, 44vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/steering-utility.png"
+                alt="Utility preservation across SafeDiffusion-R1 training checkpoints on benign prompts."
+                width="1600"
+                height="1223"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>Appendix progression: compositional utility is preserved across training checkpoints.</figcaption>
+          </figure>
+
+          <figure class="figure-panel">
+            <picture>
+              <source
+                srcset="assets/img/ood-safety-appendix-960.webp 960w, assets/img/ood-safety-appendix-1600.webp 1600w"
+                sizes="(max-width: 900px) 94vw, 44vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/ood-safety-appendix.png"
+                alt="Supplemental OOD inappropriate content category progression across harm classes."
+                width="1600"
+                height="751"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>Appendix category progression supports OOD generalization beyond nudity prompts.</figcaption>
+          </figure>
+
+          <figure class="figure-panel full-panel content-warning">
+            <div>
+              <strong>Safety note</strong>
+              <p>The original qualitative comparison contains unsafe prompt examples. This page keeps the preview blurred and redirects readers to the paper for the full controlled evaluation.</p>
+            </div>
+            <picture>
+              <source srcset="assets/img/qualitative-redacted-1400.webp 1400w" sizes="94vw" type="image/webp">
+              <img
+                src="assets/img/qualitative-redacted.png"
+                alt="Redacted qualitative comparison preview."
+                width="1400"
+                height="409"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>Qualitative comparison is redacted here; the full figure is available in the paper.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section citation-band" id="citation" aria-labelledby="citation-title">
+        <div class="content citation-layout">
+          <div>
+            <div class="section-kicker">Citation</div>
+            <h2 id="citation-title">BibTeX</h2>
+            <p>
+              Please cite SafeDiffusion-R1 if this project page, paper, or released checkpoints support your work.
+            </p>
+          </div>
+          <div class="bibtex-box">
+            <button class="copy-button" type="button" data-copy-target="bibtex">Copy</button>
+            <pre id="bibtex"><code>@misc{safediff_r1_2026,
+  title  = {SafeDiffusion-R1: Online Reward Steering for Safe Diffusion Post-Training},
+  author = {Kumar, Komal and Deria, Ankan and Basu, Abhishek and Shamshad, Fahad and Cholakkal, Hisham and Nandakumar, Karthik},
+  year   = {2026},
+  note   = {Project page}
+}</code></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="content footer-content">
+        <p>SafeDiffusion-R1 project page. Contact: komal.kumar@mbzuai.ac.ae</p>
+        <p>Mohamed bin Zayed University of Artificial Intelligence and Michigan State University.</p>
+      </div>
+    </footer>
+
+    <script src="assets/js/site.js" defer></script>
+  </body>
+</html>
