@@ -89,17 +89,6 @@ v_{\text{safe}})$:
 - Any $\alpha \in [0.3, 0.7]$ gives comparable safety/utility — the
   reward is not knife-edge sensitive.
 
-### UMAP visualisation of the steering effect
-
-<p align="center">
-  <img src="figures/umap_steering.png" width="100%"/>
-  <br/>
-  <em>UMAP of CLIP text embeddings before/after steering at several α
-  values, and the safety score s = z · v_safe as a function of α for safe
-  (blue) and unsafe (red) prompts. The redirection is consistent across
-  synonym, keyword-minimal, and negation perturbations.</em>
-</p>
-
 ---
 
 ## Repository layout
@@ -174,28 +163,6 @@ bash scripts/run_train.sh --config.num_generations 8              # group size
 
 Any field in `config/base.py` is overridable with `--config.<dotted.path>`.
 
-### Key config knobs
-
-| Field | Default | Purpose |
-|---|---|---|
-| `config.pretrained.model` | `runwayml/stable-diffusion-v1-5` | Base diffusion checkpoint. |
-| `config.reward_fn` | placeholder (pass `nsfwv2` on CLI) | Reward: `nsfwv2`, `hpsv2`, `hpsv3`. |
-| `config.train.steering_alpha` | `0.5` | NSFWv2 steering strength (paper sweet spot: 0.5). |
-| `config.num_generations` | `4` | Group size in GRPO. |
-| `config.sample.batch_size` / `config.train.batch_size` | `1` / `1` | Per-GPU sampling / training batch sizes. |
-| `config.num_epochs` | `300` | Training length. |
-| `config.save_freq` | `20` | Save a UNet checkpoint every N epochs. |
-| `config.prompt_file` | `assets/CoProv2_captions.txt` | Newline-delimited training prompts. |
-| `config.checkpoint_dir` | `./my_checkpoints/run` | Where epoch checkpoints are written. |
-| `config.sample_image_dir` | `./samples` | Where generated images are dumped during training. |
-| `config.reward_log_file` | `./reward_per_epoch.txt` | Per-epoch mean-reward log. |
-| `config.wandb_project` | `steering-diffusion-grpo` | wandb project name. |
-
-> All artefact paths default to **relative** locations, so running
-> `bash scripts/run_train.sh` from the repo root drops checkpoints,
-> samples, and the reward log under the repo. Override with
-> `--config.checkpoint_dir /absolute/path` to dump elsewhere.
-
 ### Outputs
 
 - **Checkpoints**: `<config.checkpoint_dir>/checkpoint_epoch_{N}/diffusion_pytorch_model.safetensors`.
@@ -260,27 +227,7 @@ The wrapper produces:
     └── nude_keys_count_threshold_0.6.json    # aggregate counts incl. `nude_images`
 ```
 
-### Evaluation scripts (`evaluation/execs/`)
-
-Each is a standalone CLI. They expect a folder of generated images
-(naming: `<case_number>_<seed>.png`) and, where relevant, a CSV with
-prompts to match by `case_number`.
-
-| Script | What it measures | Quick example |
-|---|---|---|
-| `generate_images.py` | Generate from a prompts CSV using a chosen UNet. | `python evaluation/execs/generate_images.py --ckpt my_checkpoints/run/checkpoint_epoch_280 --prompts_path data/i2p.csv --save_path runs/main_ours` |
-| `exp_generate_single_image.py` | Single-prompt sanity generation. | `python evaluation/execs/exp_generate_single_image.py --prompt "a nude person" --ckpt ...` |
-| `compute_nudity_rate.py` | NudeNet per-class detection over a folder. | `python evaluation/execs/compute_nudity_rate.py --root runs/main_ours/nudity --threshold 0.6` |
-| `imageclassify.py` | NSFW image classifier. | `python evaluation/execs/imageclassify.py --folder runs/main_ours` |
-| `clip_score.py` | CLIP-score between images and prompts. | `python evaluation/execs/clip_score.py --folder runs/main_ours --prompts_path data/coco.csv` |
-| `fid_score.py` | FID against a reference image folder. | `python evaluation/execs/fid_score.py --f1 runs/main_ours --f2 data/coco_5k/imgs` |
-| `lpips_score.py` | LPIPS between two image folders. | `python evaluation/execs/lpips_score.py --folder1 runs/main_ours --folder2 runs/vanilla` |
-| `style_loss.py` | VGG-19 style-drift between original and edited image sets. | `python evaluation/execs/style_loss.py --original_path runs/vanilla --edited_path runs/main_ours --promtps_path data/coco.csv` |
-| `unet_difference_norm.py` | L2 norm between two UNet checkpoints. | `python evaluation/execs/unet_difference_norm.py --ckpt1 ... --ckpt2 ...` |
-| `module_percentage.py` | Per-layer relative parameter change between checkpoints. | `python evaluation/execs/module_percentage.py --ckpt1 ... --ckpt2 ...` |
-| `Q16/eval.py` | Q16 inappropriate-content binary classifier. | `python evaluation/execs/Q16/eval.py --folder runs/main_ours` |
-
-### Typical evaluation flow
+### Evaluation flow
 
 ```bash
 # 1. Generate images from a prompts CSV with your trained UNet
@@ -300,16 +247,6 @@ python evaluation/execs/Q16/eval.py --folder runs/main_ours/nudity/imgs
 The NudeNet ONNX lives at `evaluation/utils/metrics/nudenet/best_new.onnx`
 (in repo). Q16 prompt embeddings live at `evaluation/execs/Q16/data/`.
 
-## What's vendored vs.\ what you supply
-
-| Component | In-repo? | If not, where to get it |
-|---|---|---|
-| HPSv2 source code | ✅ `vendor/HPSv2/` | n/a |
-| HPSv2 v2.1 checkpoints (`open_clip_pytorch_model.bin`, `HPS_v2.1_compressed.pt`) | ❌ (5.6 GB) | HPSv2 releases → drop in `hps_ckpt/`, point `HPS_CKPT_PATH` |
-| NudeNet ONNX (`best_new.onnx`) | ✅ `evaluation/utils/metrics/nudenet/` | n/a |
-| Q16 prompt embeddings | ✅ `evaluation/execs/Q16/data/` | n/a |
-| Stable Diffusion base weights | ❌ | HuggingFace Hub (auto-downloaded by `diffusers` on first run) |
-| I2P / COCO / SneakyPrompt / MMA datasets | ❌ | Public datasets — point CLI flags at local copies |
 
 ## Pretrained model release
 
