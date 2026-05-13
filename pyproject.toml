@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "steering-diffusion"
+version = "0.1.0"
+description = "GRPO training for Stable Diffusion with reward-based steering"
+requires-python = ">=3.10"
+dependencies = [
+    # Core training
+    "torch>=2.0",
+    "diffusers>=0.25.0,<1.0",
+    "transformers>=4.36",
+    "accelerate>=1.0",
+    "safetensors",
+
+    # Config & CLI
+    "ml-collections",
+    "absl-py",
+
+    # Logging
+    "wandb",
+
+    # Utilities
+    "numpy",
+    "Pillow",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+eval = [
+    "torchvision",
+    "torchmetrics",
+    "pandas",
+    "scipy",
+    "lpips",
+    "cleanfid",
+    "opencv-python",
+]
+hpsv2 = [
+    "open_clip_torch",
+    "huggingface_hub",
+]
+8bit = [
+    "bitsandbytes",
+]
+
+[tool.setuptools.packages.find]
+include = ["fastvideo*", "rewards*"]

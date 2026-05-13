@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Model checkpoints (large files)
+hps_ckpt/
+/HPSv2/                # ignore a top-level HPSv2 clone, but NOT vendor/HPSv2/
+*.pt
+*.bin
+*.safetensors
+my_checkpoints/
+
+# Allow the vendored HPSv2 source code
+!vendor/HPSv2/**
+
+# Allow the small NudeNet detector ONNX shipped with the repo
+!evaluation/utils/metrics/nudenet/best_new.onnx
+!evaluation/utils/metrics/nudenet/*.onnx
+
+# Generated images / training artefacts
+unsafe_images*/
+images_same*/
+samples/
+reward_per_epoch.txt
+training_run.log
+
+# Logs / wandb
+logs/
+wandb/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
