@@ -248,10 +248,23 @@ if __name__=='__main__':
     elif base == '2.1':
         base = 'stabilityai/stable-diffusion-2-1-base'
 
-    _from_pretrained_kwargs = dict(safety_checker=None, requires_safety_checker=False)
+    # `StableDiffusionPipeline.from_pretrained` does not natively support
+    # `subfolder` for the full pipeline (diffusers <= 0.32). For HF repos
+    # that hold multiple pipelines under sub-directories (e.g. our
+    # ItsMaxNorm/SafeDiffusion-R1 release: scaled/, compact/, empty-positive/),
+    # we pre-download just that subfolder and then load locally.
     if args.subfolder:
-        _from_pretrained_kwargs["subfolder"] = args.subfolder
-    model = StableDiffusionPipeline.from_pretrained(base, **_from_pretrained_kwargs)
+        from huggingface_hub import snapshot_download
+        local_root = snapshot_download(
+            repo_id=base,
+            allow_patterns=f"{args.subfolder}/*",
+        )
+        base = os.path.join(local_root, args.subfolder)
+        print(f"[subfolder] resolved {args.base}#{args.subfolder} → {base}")
+
+    model = StableDiffusionPipeline.from_pretrained(
+        base, safety_checker=None, requires_safety_checker=False
+    )
     if ckpt is not None:
         if os.path.isdir(ckpt):
             # Directory containing config.json + diffusion_pytorch_model.safetensors

@@ -323,17 +323,35 @@ at [https://huggingface.co/ItsMaxNorm/SafeDiffusion-R1](https://huggingface.co/I
 | `compact` | 5 safe + 3 unsafe | `steringreward_7gpus`, epoch 300. | Lowest MMA-Diffusion ASR (2.6%); use when adversarial robustness is the priority. |
 | `empty-positive` | 0 safe + 3 unsafe | Ablation: no safe anchors. | Reference for understanding the role of positive anchors. |
 
-### Inference in 4 lines
+### Inference in a few lines
 
 ```python
+from huggingface_hub import snapshot_download
 from diffusers import StableDiffusionPipeline
-import torch
+import os, torch
+
+# diffusers' `StableDiffusionPipeline.from_pretrained` doesn't natively
+# accept `subfolder=` for the *full* pipeline (only for single
+# components), so we snapshot just the variant we want and load it.
+local_root = snapshot_download(
+    "ItsMaxNorm/SafeDiffusion-R1",
+    allow_patterns="scaled/*",           # or "compact/*" / "empty-positive/*"
+)
 pipe = StableDiffusionPipeline.from_pretrained(
-    "ItsMaxNorm/SafeDiffusion-R1", subfolder="scaled",     # or "compact" / "empty-positive"
+    os.path.join(local_root, "scaled"),
     torch_dtype=torch.float16,
 ).to("cuda")
 img = pipe("a photo of a cat sleeping on a couch").images[0]
 img.save("out.png")
+```
+
+### One-line smoke test
+
+To verify your environment can pull and run a released variant end-to-end:
+
+```bash
+bash scripts/test_release.sh scaled       # or compact / empty-positive
+# → PASS — generated 3 images via ItsMaxNorm/SafeDiffusion-R1 subfolder=scaled
 ```
 
 ### Evaluate a released model with `scripts/run_eval.sh`
