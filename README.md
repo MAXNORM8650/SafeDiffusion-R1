@@ -1,13 +1,111 @@
 # SafeDiffusion-R1: Online Reward Steering for Safe Diffusion Post-Training
 
-GRPO-based safety post-training for Stable Diffusion using a closed-form,
-CLIP-based **steering reward**. No separately trained safety classifier,
-no paired safe/unsafe image dataset.
+<p align="center">
+  <img src="figures/teaser.png" width="100%"/>
+</p>
+
+GRPO-based safety post-training for Stable Diffusion using a **closed-form,
+CLIP-based steering reward**. No separately trained safety classifier, no
+paired safe/unsafe image dataset, no inference-time intervention — the
+safety prior is baked into the UNet weights.
+
+---
+
+## TL;DR — what the method does
+
+For an NSFW prompt $p$, vanilla SD produces an image $x$ aligned to the
+unsafe text embedding $z_p$. We instead reward the model against a
+**steered** target $z_p + \alpha \cdot v_{\text{safe}}$, where
+$v_{\text{safe}}$ is a single direction in CLIP-text space computed
+once from a small set of (safe, unsafe) anchor phrases:
+
+$$
+v_{\text{safe}} \;=\; \overline{z_{\text{safe anchors}}} - \overline{z_{\text{unsafe anchors}}},
+\qquad
+r(x, p) \;=\; \cos\!\big(z_{\text{img}}(x),\; z_p + \alpha\, v_{\text{safe}}\big).
+$$
+
+GRPO post-training then nudges the UNet to satisfy this steered reward.
+Because $v_{\text{safe}}$ is computed from a **frozen** CLIP encoder, the
+target is stationary — the on-policy samples drift, but the anchor they're
+regressed onto does not. This is what prevents the FID collapse that
+plain GRPO suffers from on the same safety objective (FID 250 at 0%
+nudity vs. ours at FID 48 with comparable safety).
+
+<p align="center">
+  <img src="figures/method.png" width="92%"/>
+  <br/>
+  <em>Method overview: a frozen CLIP encoder defines a safety direction
+  v_safe from a small anchor set; GRPO uses the steered embedding as the
+  reward target during diffusion post-training.</em>
+</p>
+
+## Headline results (vs.\ SD-v1.4 baseline)
+
+| Benchmark | Baseline (SD-v1.4) | **Ours** | Δ |
+|---|---|---|---|
+| I2P inappropriate-content rate | 48.9% | **18.07%** | **−63%** |
+| NudeNet detections (I2P, 4.7k prompts) | 646 | **15** | **−97.7%** |
+| GenEval compositional accuracy | 42.08% | **47.83%** | **+5.75 pp** |
+| MMA-Diffusion (1000-prompt benchmark, ASR↓) | 22.6% | **2.6%** | **8.7×** safer |
+| SneakyPrompt RL (skip-rate↑, 200 prompts) | 37% | **89.5%** | model resists most prompts before any attack |
+
+The safety gains **generalize to 7 OOD harm categories** (hate,
+harassment, violence, self-harm, shocking, illegal-activity, sexual) even
+though training only sees benign + nudity-style negatives.
+
+<p align="center">
+  <img src="figures/qualitative_results.png" width="100%"/>
+  <br/>
+  <em>Qualitative comparison: explicit prompts at inference time produce
+  benign content from our model while vanilla SD generates NSFW imagery.</em>
+</p>
+
+## How the steering direction works geometrically
+
+<p align="center">
+  <img src="figures/steering_geometry.png" width="55%"/>
+</p>
+
+A held-out NSFW prompt sits in the unsafe sub-region of CLIP-text space;
+adding $\alpha\, v_{\text{safe}}$ translates it across the safe/unsafe
+boundary while preserving the prompt-conditional content. The
+reward then anchors the on-policy samples to this translated target.
+
+### Steering strength $\alpha$ is smooth and not knife-edge
+
+We sweep $\alpha \in [0, 2]$ on 180 NSFW + 200 GenEval prompts and
+record reward $r(\alpha) = \cos(z_{\text{img}}, z_{\text{text}} + \alpha\,
+v_{\text{safe}})$:
+
+<p align="center">
+  <img src="figures/alpha_sensitivity.png" width="55%"/>
+</p>
+
+- **SAFE prompts** stay essentially flat for $\alpha \le 0.5$ — utility
+  is preserved.
+- **NSFW prompts** drop monotonically with diminishing returns past
+  $\alpha \approx 0.7$.
+- Any $\alpha \in [0.3, 0.7]$ gives comparable safety/utility — the
+  reward is not knife-edge sensitive.
+
+### UMAP visualisation of the steering effect
+
+<p align="center">
+  <img src="figures/umap_steering.png" width="100%"/>
+  <br/>
+  <em>UMAP of CLIP text embeddings before/after steering at several α
+  values, and the safety score s = z · v_safe as a function of α for safe
+  (blue) and unsafe (red) prompts. The redirection is consistent across
+  synonym, keyword-minimal, and negation perturbations.</em>
+</p>
+
+---
 
 ## Repository layout
 
 ```
-SteeringDiffusion/
+SafeDiffusion-R1/
 ├── pyproject.toml                          # Minimal dependencies
 ├── assets/CoProv2_captions.txt             # Default training prompt corpus
 ├── config/base.py                          # Training config (ml_collections)
@@ -17,12 +115,14 @@ SteeringDiffusion/
 ├── rewards/
 │   ├── inference_reward.py                 # NSFWv2 steering reward (CLIP + v_safe)
 │   └── safety_classifier.py                # Builds the linear safety direction
-├── vendor/HPSv2/                           # Vendored HPSv2 sources (used by NSFWv2)
+├── vendor/HPSv2/                           # Vendored HPSv2 sources (no separate clone)
 ├── evaluation/
-│   ├── execs/                              # Eval entry-point scripts (see table below)
-│   └── utils/                              # Helper modules + NudeNet ONNX
-│       └── metrics/                        # nudity_eval, q16, clip_score, style_eval, ...
-└── scripts/run_train.sh                    # Canonical launch script (torchrun)
+│   ├── execs/                              # Eval entry-point scripts (see table)
+│   └── utils/                              # Helper modules + NudeNet ONNX (in-repo)
+├── figures/                                # Paper / docs figures used in this README
+└── scripts/
+    ├── run_train.sh                        # Canonical training launch (torchrun)
+    └── run_eval.sh                         # One-shot eval pipeline for any SD ckpt
 ```
 
 ## Setup
@@ -39,9 +139,9 @@ mkdir -p hps_ckpt
 export HPS_CKPT_PATH=$(pwd)/hps_ckpt
 ```
 
-The HPSv2 source code is already **vendored** under `vendor/HPSv2/` — you do
-not need a separate clone. (If you want to override, set
-`export HPSV2_PATH=/path/to/your/HPSv2`.)
+The HPSv2 source code is **vendored** at `vendor/HPSv2/` — no separate
+clone needed. (Override with `export HPSV2_PATH=/path/to/your/HPSv2` if
+desired.)
 
 ## Train
 
@@ -72,10 +172,9 @@ bash scripts/run_train.sh --config.train.steering_alpha 0.7       # tune α
 bash scripts/run_train.sh --config.num_generations 8              # group size
 ```
 
-Any field in `config/base.py` can be overridden with `--config.<dotted.path>`
-on the command line.
+Any field in `config/base.py` is overridable with `--config.<dotted.path>`.
 
-## Key config knobs
+### Key config knobs
 
 | Field | Default | Purpose |
 |---|---|---|
@@ -97,27 +196,26 @@ on the command line.
 > samples, and the reward log under the repo. Override with
 > `--config.checkpoint_dir /absolute/path` to dump elsewhere.
 
-## Outputs
+### Outputs
 
 - **Checkpoints**: `<config.checkpoint_dir>/checkpoint_epoch_{N}/diffusion_pytorch_model.safetensors`.
-  Drop this into a fresh `StableDiffusionPipeline` UNet to evaluate.
+  Drop into a fresh `StableDiffusionPipeline` UNet to evaluate.
 - **Per-epoch mean reward log**: appended line-by-line to `<config.reward_log_file>`.
 - **Sampled images during training**: `<config.sample_image_dir>/image-*.jpg`.
 - **wandb run**: under project `<config.wandb_project>`.
 
-## Reward variants
+### Reward variants
 
 | `--config.reward_fn` | Description | Extra deps |
 |---|---|---|
-| `nsfwv2` | The paper's steering reward. Computes a `v_safe` direction in HPSv2 CLIP space from a small anchor set, then rewards `cos(z_image, z_text + α·v_safe)`. | `HPS_CKPT_PATH` |
-| `hpsv2` | Vanilla HPS-v2 alignment reward (no safety steering). | same |
+| `nsfwv2` | The paper's steering reward. Closed-form $v_{\text{safe}}$ direction in HPSv2 CLIP space + cosine alignment to the steered target. | `HPS_CKPT_PATH` |
+| `hpsv2` | Vanilla HPS-v2 alignment reward (no safety steering — used as the ablation baseline in our paper). | same |
 | `hpsv3` | HPS-v3 reward (no safety steering). | `pip install hpsv3` |
 
 ## Evaluate any Stable Diffusion model
 
-`scripts/run_eval.sh` is a one-shot wrapper that takes **any** SD-style
-diffusion model (your trained checkpoint or a vanilla baseline) and runs
-the end-to-end safety / utility evaluation.
+`scripts/run_eval.sh` is a one-shot wrapper for the end-to-end
+safety / utility evaluation of **any** Stable-Diffusion-style checkpoint.
 
 ```bash
 # 1) Your trained checkpoint (epoch 280)
@@ -148,9 +246,9 @@ bash scripts/run_eval.sh \
 | **`.safetensors` file** | `path/to/diffusion_pytorch_model.safetensors` | loads as a state-dict into the base SD UNet |
 | **`vanilla`** | literal string | skips the UNet swap, uses the `--base` model as-is |
 
-`--base` accepts either a HuggingFace model id (e.g.
-`runwayml/stable-diffusion-v1-5`) or a local snapshot directory.
-Shorthands `1.4`, `2.1` are mapped to the official CompVis / Stability hubs.
+`--base` accepts a HuggingFace model id (e.g.
+`runwayml/stable-diffusion-v1-5`) or a local snapshot directory. Shorthands
+`1.4`, `2.1` map to the official CompVis / Stability hubs.
 
 The wrapper produces:
 
@@ -162,23 +260,23 @@ The wrapper produces:
     └── nude_keys_count_threshold_0.6.json    # aggregate counts incl. `nude_images`
 ```
 
-## Evaluation scripts (`evaluation/execs/`)
+### Evaluation scripts (`evaluation/execs/`)
 
-Each script is a standalone CLI. They expect a folder of generated images
-(naming convention: `<case_number>_<seed>.png`) and, where relevant, a CSV
-with prompts to match by `case_number`.
+Each is a standalone CLI. They expect a folder of generated images
+(naming: `<case_number>_<seed>.png`) and, where relevant, a CSV with
+prompts to match by `case_number`.
 
 | Script | What it measures | Quick example |
 |---|---|---|
-| `generate_images.py` | Generate a folder of images from a prompts CSV using a chosen UNet. | `python evaluation/execs/generate_images.py --ckpt my_checkpoints/run/checkpoint_epoch_280/diffusion_pytorch_model.safetensors --prompts_path data/i2p.csv --save_path runs/main_ours` |
+| `generate_images.py` | Generate from a prompts CSV using a chosen UNet. | `python evaluation/execs/generate_images.py --ckpt my_checkpoints/run/checkpoint_epoch_280 --prompts_path data/i2p.csv --save_path runs/main_ours` |
 | `exp_generate_single_image.py` | Single-prompt sanity generation. | `python evaluation/execs/exp_generate_single_image.py --prompt "a nude person" --ckpt ...` |
-| `compute_nudity_rate.py` | NudeNet per-class detection over a folder; outputs a JSON of per-image labels and aggregate `nude_keys_count_threshold_<t>.json`. | `python evaluation/execs/compute_nudity_rate.py --root runs/main_ours/nudity --threshold 0.6` |
-| `imageclassify.py` | NSFW image classifier (Falconsai-style). | `python evaluation/execs/imageclassify.py --folder runs/main_ours` |
-| `clip_score.py` | CLIP-score between generated images and the prompt set. | `python evaluation/execs/clip_score.py --folder runs/main_ours --prompts_path data/coco.csv` |
+| `compute_nudity_rate.py` | NudeNet per-class detection over a folder. | `python evaluation/execs/compute_nudity_rate.py --root runs/main_ours/nudity --threshold 0.6` |
+| `imageclassify.py` | NSFW image classifier. | `python evaluation/execs/imageclassify.py --folder runs/main_ours` |
+| `clip_score.py` | CLIP-score between images and prompts. | `python evaluation/execs/clip_score.py --folder runs/main_ours --prompts_path data/coco.csv` |
 | `fid_score.py` | FID against a reference image folder. | `python evaluation/execs/fid_score.py --f1 runs/main_ours --f2 data/coco_5k/imgs` |
-| `lpips_score.py` | LPIPS between two image folders (pairwise by filename). | `python evaluation/execs/lpips_score.py --folder1 runs/main_ours --folder2 runs/vanilla` |
+| `lpips_score.py` | LPIPS between two image folders. | `python evaluation/execs/lpips_score.py --folder1 runs/main_ours --folder2 runs/vanilla` |
 | `style_loss.py` | VGG-19 style-drift between original and edited image sets. | `python evaluation/execs/style_loss.py --original_path runs/vanilla --edited_path runs/main_ours --promtps_path data/coco.csv` |
-| `unet_difference_norm.py` | L2 norm between two UNet checkpoints (sanity check of how far training drifted). | `python evaluation/execs/unet_difference_norm.py --ckpt1 ... --ckpt2 ...` |
+| `unet_difference_norm.py` | L2 norm between two UNet checkpoints. | `python evaluation/execs/unet_difference_norm.py --ckpt1 ... --ckpt2 ...` |
 | `module_percentage.py` | Per-layer relative parameter change between checkpoints. | `python evaluation/execs/module_percentage.py --ckpt1 ... --ckpt2 ...` |
 | `Q16/eval.py` | Q16 inappropriate-content binary classifier. | `python evaluation/execs/Q16/eval.py --folder runs/main_ours` |
 
@@ -186,35 +284,70 @@ with prompts to match by `case_number`.
 
 ```bash
 # 1. Generate images from a prompts CSV with your trained UNet
-python evaluation/execs/generate_images.py \
-    --ckpt my_checkpoints/run/checkpoint_epoch_280/diffusion_pytorch_model.safetensors \
-    --prompts_path data/i2p_benchmark.csv \
-    --save_path runs/main_ours --concept nudity
+bash scripts/run_eval.sh \
+    --ckpt my_checkpoints/run/checkpoint_epoch_280 \
+    --prompts data/i2p_benchmark.csv \
+    --out runs/main_ours
 
-# 2. Score nudity (writes nude_keys_count_threshold_0.6.json into the same dir)
-python evaluation/execs/compute_nudity_rate.py \
-    --root runs/main_ours/nudity --threshold 0.6
-
-# 3. Compute COCO FID against a real-image reference folder
-python evaluation/execs/fid_score.py \
-    --f1 runs/coco_main_ours --f2 data/coco_5k/imgs
-
-# 4. CLIP-score (text-image alignment) on benign captions
+# 2. (Optional) CLIP-score on benign captions for utility
 python evaluation/execs/clip_score.py \
-    --folder runs/coco_main_ours --prompts_path data/coco_30k_val.csv
+    --folder runs/main_ours/nudity --prompts_path data/coco_30k_val.csv
+
+# 3. (Optional) Q16 as a second-opinion safety detector
+python evaluation/execs/Q16/eval.py --folder runs/main_ours/nudity/imgs
 ```
 
-The NudeNet ONNX model lives at `evaluation/utils/metrics/nudenet/best_new.onnx`
-(already in repo). The Q16 prompt embeddings live at
-`evaluation/execs/Q16/data/`.
+The NudeNet ONNX lives at `evaluation/utils/metrics/nudenet/best_new.onnx`
+(in repo). Q16 prompt embeddings live at `evaluation/execs/Q16/data/`.
 
 ## What's vendored vs.\ what you supply
 
 | Component | In-repo? | If not, where to get it |
 |---|---|---|
 | HPSv2 source code | ✅ `vendor/HPSv2/` | n/a |
-| HPSv2 v2.1 checkpoint (`open_clip_pytorch_model.bin`, `HPS_v2.1_compressed.pt`) | ❌ (5.6 GB) | HPSv2 GitHub releases → put in `hps_ckpt/`, point `HPS_CKPT_PATH` at it |
+| HPSv2 v2.1 checkpoints (`open_clip_pytorch_model.bin`, `HPS_v2.1_compressed.pt`) | ❌ (5.6 GB) | HPSv2 releases → drop in `hps_ckpt/`, point `HPS_CKPT_PATH` |
 | NudeNet ONNX (`best_new.onnx`) | ✅ `evaluation/utils/metrics/nudenet/` | n/a |
 | Q16 prompt embeddings | ✅ `evaluation/execs/Q16/data/` | n/a |
 | Stable Diffusion base weights | ❌ | HuggingFace Hub (auto-downloaded by `diffusers` on first run) |
-| I2P / COCO / SneakyPrompt / MMA datasets | ❌ | Public datasets — point CLI flags at your local copies |
+| I2P / COCO / SneakyPrompt / MMA datasets | ❌ | Public datasets — point CLI flags at local copies |
+
+## Reproducing the paper's main checkpoint
+
+```bash
+# 8-GPU run, NSFWv2 steering, α=0.5, group size 16, 300 epochs, save every 20
+bash scripts/run_train.sh \
+    --config.num_epochs 300 \
+    --config.save_freq 20 \
+    --config.train.steering_alpha 0.5 \
+    --config.num_generations 16 \
+    --config.sample.batch_size 4 \
+    --config.train.batch_size 4
+```
+
+Pretrained UNet checkpoints from our paper are released at
+[https://huggingface.co/ItsMaxNorm/diffusion-p](https://huggingface.co/ItsMaxNorm/diffusion-p),
+notably:
+
+- `geneval_negative_steringreward_8gpus_scale/checkpoint_epoch_280` — main paper checkpoint (scaled anchors)
+- `steringreward_7gpus/checkpoint_epoch_300` — compact-anchor variant
+- `geneval_negative_steringreward_8gpus_empty_pos/checkpoint_epoch_280` — empty-positive ablation
+- `CoProv2_grpo/checkpoint_epoch_300` — GRPO-only no-steering baseline
+
+## Citation
+
+If you find this work useful, please cite:
+
+```bibtex
+@inproceedings{safediffusion_r1_2026,
+  title  = {SafeDiffusion-R1: Online Reward Steering for Safe Diffusion Post-Training},
+  author = {(authors)},
+  booktitle = {(venue)},
+  year   = {2026}
+}
+```
+
+## License
+
+This project is released under the terms of the `LICENSE` file. The
+vendored HPSv2 source under `vendor/HPSv2/` is redistributed under its
+original MIT license (see `vendor/HPSv2/LICENSE`).
