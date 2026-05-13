@@ -216,9 +216,13 @@ if __name__=='__main__':
                         '(b) a directory containing diffusion_pytorch_model.safetensors + config.json',
                         type=str, required=False, default=None)
     parser.add_argument('--base', help='Base Stable Diffusion model. Accepts a HF model id '
-                        '(e.g. "runwayml/stable-diffusion-v1-5") or a local snapshot directory. '
+                        '(e.g. "runwayml/stable-diffusion-v1-5" or "ItsMaxNorm/SafeDiffusion-R1") '
+                        'or a local snapshot directory. '
                         'Shorthand `1.4` and `2.1` map to the official CompVis / Stability hubs.',
                         type=str, required=False, default='runwayml/stable-diffusion-v1-5')
+    parser.add_argument('--subfolder', help='Optional subfolder inside `--base` (HF Hub multi-model repos). '
+                        'For ItsMaxNorm/SafeDiffusion-R1 use one of "scaled", "compact", "empty-positive".',
+                        type=str, required=False, default=None)
     parser.add_argument('--df_length', help='number of prompts to use', type=int, required=False, default=None)
     parser.add_argument('--df_start', help='start index of prompts to use', type=int, required=False, default=0)
     args = parser.parse_args()
@@ -244,9 +248,10 @@ if __name__=='__main__':
     elif base == '2.1':
         base = 'stabilityai/stable-diffusion-2-1-base'
 
-    model = StableDiffusionPipeline.from_pretrained(
-        base, safety_checker=None, requires_safety_checker=False
-    )
+    _from_pretrained_kwargs = dict(safety_checker=None, requires_safety_checker=False)
+    if args.subfolder:
+        _from_pretrained_kwargs["subfolder"] = args.subfolder
+    model = StableDiffusionPipeline.from_pretrained(base, **_from_pretrained_kwargs)
     if ckpt is not None:
         if os.path.isdir(ckpt):
             # Directory containing config.json + diffusion_pytorch_model.safetensors

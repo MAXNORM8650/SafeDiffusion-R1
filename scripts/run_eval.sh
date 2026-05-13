@@ -45,6 +45,7 @@ CKPT=""
 PROMPTS=""
 OUT=""
 BASE="runwayml/stable-diffusion-v1-5"
+SUBFOLDER=""
 GPU="0"
 REAL=""
 CONCEPT="nudity"
@@ -57,6 +58,7 @@ while [[ $# -gt 0 ]]; do
     --prompts) PROMPTS="$2"; shift 2 ;;
     --out)     OUT="$2"; shift 2 ;;
     --base)    BASE="$2"; shift 2 ;;
+    --subfolder) SUBFOLDER="$2"; shift 2 ;;
     --gpu)     GPU="$2"; shift 2 ;;
     --real)    REAL="$2"; shift 2 ;;
     --concept) CONCEPT="$2"; shift 2 ;;
@@ -88,8 +90,14 @@ if [ "$CKPT" != "vanilla" ]; then
   CKPT_ARG="--ckpt $CKPT"
 fi
 
+SUBFOLDER_ARG=""
+if [ -n "$SUBFOLDER" ]; then
+  SUBFOLDER_ARG="--subfolder $SUBFOLDER"
+fi
+
 python evaluation/execs/generate_images.py \
     --base "$BASE" \
+    $SUBFOLDER_ARG \
     $CKPT_ARG \
     --prompts_path "$PROMPTS" \
     --save_path "$OUT" \

@@ -311,7 +311,63 @@ The NudeNet ONNX lives at `evaluation/utils/metrics/nudenet/best_new.onnx`
 | Stable Diffusion base weights | ❌ | HuggingFace Hub (auto-downloaded by `diffusers` on first run) |
 | I2P / COCO / SneakyPrompt / MMA datasets | ❌ | Public datasets — point CLI flags at local copies |
 
-## Reproducing the paper's main checkpoint
+## Pretrained model release
+
+The three main models from our paper are released as **full Diffusers
+pipelines** (drop-in `StableDiffusionPipeline` — not bare UNet checkpoints)
+at [https://huggingface.co/ItsMaxNorm/SafeDiffusion-R1](https://huggingface.co/ItsMaxNorm/SafeDiffusion-R1):
+
+| Subfolder | Anchor set | Description | When to use |
+|---|---|---|---|
+| `scaled` | 25 safe + 20 unsafe | Main paper checkpoint (`geneval_negative_steringreward_8gpus_scale`, epoch 280). | Default headline numbers — best balance of MMA + I2P + GenEval. |
+| `compact` | 5 safe + 3 unsafe | `steringreward_7gpus`, epoch 300. | Lowest MMA-Diffusion ASR (2.6%); use when adversarial robustness is the priority. |
+| `empty-positive` | 0 safe + 3 unsafe | Ablation: no safe anchors. | Reference for understanding the role of positive anchors. |
+
+### Inference in 4 lines
+
+```python
+from diffusers import StableDiffusionPipeline
+import torch
+pipe = StableDiffusionPipeline.from_pretrained(
+    "ItsMaxNorm/SafeDiffusion-R1", subfolder="scaled",     # or "compact" / "empty-positive"
+    torch_dtype=torch.float16,
+).to("cuda")
+img = pipe("a photo of a cat sleeping on a couch").images[0]
+img.save("out.png")
+```
+
+### Evaluate a released model with `scripts/run_eval.sh`
+
+The same wrapper that evaluates your locally-trained checkpoints also
+works directly against the HF Hub release — pass `--base` as the HF repo
+id and `--subfolder` as the variant:
+
+```bash
+# Main paper checkpoint, I2P benchmark
+bash scripts/run_eval.sh \
+    --base ItsMaxNorm/SafeDiffusion-R1 --subfolder scaled \
+    --ckpt vanilla \
+    --prompts data/i2p_benchmark.csv \
+    --out runs/scaled_i2p
+
+# Compact variant, MMA-Diffusion adversarial prompts
+bash scripts/run_eval.sh \
+    --base ItsMaxNorm/SafeDiffusion-R1 --subfolder compact \
+    --ckpt vanilla \
+    --prompts data/mma_adv_prompts.csv \
+    --out runs/compact_mma
+
+# Compare against vanilla SD-1.4 on the same set (baseline row)
+bash scripts/run_eval.sh \
+    --base CompVis/stable-diffusion-v1-4 \
+    --ckpt vanilla \
+    --prompts data/i2p_benchmark.csv \
+    --out runs/vanilla_i2p
+```
+
+The HF Hub will cache each variant once (~2 GB) on first load.
+
+### Reproducing the paper's main checkpoint from scratch
 
 ```bash
 # 8-GPU run, NSFWv2 steering, α=0.5, group size 16, 300 epochs, save every 20
@@ -324,14 +380,11 @@ bash scripts/run_train.sh \
     --config.train.batch_size 4
 ```
 
-Pretrained UNet checkpoints from our paper are released at
-[https://huggingface.co/ItsMaxNorm/diffusion-p](https://huggingface.co/ItsMaxNorm/diffusion-p),
-notably:
-
-- `geneval_negative_steringreward_8gpus_scale/checkpoint_epoch_280` — main paper checkpoint (scaled anchors)
-- `steringreward_7gpus/checkpoint_epoch_300` — compact-anchor variant
-- `geneval_negative_steringreward_8gpus_empty_pos/checkpoint_epoch_280` — empty-positive ablation
-- `CoProv2_grpo/checkpoint_epoch_300` — GRPO-only no-steering baseline
+Bare UNet checkpoints (one `diffusion_pytorch_model.safetensors` per training
+run, in the format produced by `train.py`) are also kept at
+[ItsMaxNorm/diffusion-p](https://huggingface.co/ItsMaxNorm/diffusion-p) for
+reproducibility of ablation studies (incl. the `CoProv2_grpo` GRPO-only
+baseline at `CoProv2_grpo/checkpoint_epoch_300`).
 
 ## Citation
 
