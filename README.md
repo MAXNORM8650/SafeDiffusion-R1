@@ -341,6 +341,15 @@ run, in the format produced by `train.py`) are also kept at
 reproducibility of ablation studies (incl. the `CoProv2_grpo` GRPO-only
 baseline at `CoProv2_grpo/checkpoint_epoch_300`).
 
+## Acknowledgement
+We learned and reused code from the following projects:
+- [DanceGRPO](https://github.com/XueZeyue/DanceGRPO)
+- [FastVideo](https://github.com/hao-ai-lab/FastVideo)
+- [diffusers](https://github.com/huggingface/diffusers)
+- [DDPO-Pytorch](https://github.com/kvablack/ddpo-pytorch)
+
+We thank the authors for their contributions to the community!
+
 ## Citation
 
 If you find this work useful, please cite:
