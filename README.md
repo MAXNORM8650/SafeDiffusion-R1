@@ -346,11 +346,14 @@ baseline at `CoProv2_grpo/checkpoint_epoch_300`).
 If you find this work useful, please cite:
 
 ```bibtex
-@inproceedings{safediffusion_r1_2026,
-  title  = {SafeDiffusion-R1: Online Reward Steering for Safe Diffusion Post-Training},
-  author = {(authors)},
-  booktitle = {(venue)},
-  year   = {2026}
+@misc{kumar2026safediffusionr1,
+      title={SafeDiffusion-R1: Online Reward Steering for Safe Diffusion Post-Training}, 
+      author={Komal Kumar and Ankan Deria and Abhishek Basu and Fahad Shamshad and Hisham Cholakkal and Karthik Nandakumar},
+      year={2026},
+      eprint={2605.18719},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2605.18719}, 
 }
 ```
 
