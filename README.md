@@ -133,7 +133,14 @@ clone needed. (Override with `export HPSV2_PATH=/path/to/your/HPSv2` if
 desired.)
 
 ## Train
+### First download the prompts
 
+```bash
+from datasets import load_dataset
+
+# NSFW negative-anchor prompts (used during steering-reward GRPO)
+ds_neg = load_dataset("ItsMaxNorm/SafeDiffusion-R1-dataset", "prompts_nsfw_extended", split="train")
+```
 The canonical launch (NSFWv2 steering reward, edit GPU count for your machine):
 
 ```bash
