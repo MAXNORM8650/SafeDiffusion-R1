@@ -362,14 +362,12 @@ We thank the authors for their contributions to the community!
 If you find this work useful, please cite:
 
 ```bibtex
-@misc{kumar2026safediffusionr1,
-      title={SafeDiffusion-R1: Online Reward Steering for Safe Diffusion Post-Training}, 
-      author={Komal Kumar and Ankan Deria and Abhishek Basu and Fahad Shamshad and Hisham Cholakkal and Karthik Nandakumar},
-      year={2026},
-      eprint={2605.18719},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2605.18719}, 
+@article{kumar2026safediffusion,
+  title={SafeDiffusion-R1: Online Reward Steering for Safe Diffusion Post-Training},
+  author={Kumar, Komal and Deria, Ankan and Basu, Abhishek and Shamshad, Fahad and Cholakkal, Hisham and Nandakumar, Karthik},
+  journal={arXiv preprint arXiv:2605.18719},
+  year={2026}
+}
 }
 ```
 
