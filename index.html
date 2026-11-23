@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SafeDiffusion-R1 | Online Reward Steering for Safe Diffusion Post-Training</title>
+    <meta
+      name="description"
+      content="SafeDiffusion-R1 is an online GRPO post-training framework for safer text-to-image diffusion models using geometry-aware CLIP/HPSv2 reward steering."
+    >
+    <meta name="theme-color" content="#0f766e">
+    <link rel="stylesheet" href="assets/css/site.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <nav class="nav-shell" aria-label="Primary">
+        <a class="brand" href="#top" aria-label="SafeDiffusion-R1 home">
+          <span class="brand-mark" aria-hidden="true">S</span>
+          <span>SafeDiffusion-R1</span>
+        </a>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+          <span class="sr-only">Toggle navigation</span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </button>
+        <div class="nav-links" id="site-nav">
+          <a href="#video">Video</a>
+          <a href="#method">Method</a>
+          <a href="#tfgrpo">TF-GRPO</a>
+          <a href="#results">Results</a>
+          <a href="#ablation">Ablation</a>
+          <a href="#qualitative">Qualitative</a>
+          
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top" aria-labelledby="page-title">
+        <div class="hero-inner">
+          <div class="hero-copy">
+            <p class="eyebrow">Safe text-to-image diffusion post-training</p>
+            <h1 id="page-title">SafeDiffusion-R1: Online Reward Steering for Safe Diffusion Post-Training</h1>
+            <p class="hero-summary">
+              Online GRPO with geometry-aware reward steering in CLIP/HPSv2 space for safer
+              diffusion models without paired safe/unsafe image supervision or reward model fine-tuning,
+              plus a training-free variant (TF-GRPO) that steers a frozen generator.
+            </p>
+
+            <div class="authors" aria-label="Authors">
+              <span>Anonymous Authors</span>
+            </div>
+            <div class="affiliations">
+              <span>Anonymous project page for double-blind review</span>
+            </div>
+
+            <div class="actions" aria-label="Project links">
+              <a class="button primary" href="#video">Video overview</a>
+              <a class="button" href="#tfgrpo">Training-free variant</a>
+              <a class="button" href="#results">Results</a>
+            </div>
+            <p class="figure-note">Paper, code, checkpoints and datasets will be released after the review period.</p>
+
+            <figure class="hero-figure">
+              <picture> 
+                <source
+                  srcset="assets/img/teaser-960.webp 960w, assets/img/teaser-1600.webp 1600w"
+                  sizes="(max-width: 900px) 94vw, 1120px"
+                  type="image/webp"
+                >
+                <img
+                  src="assets/img/teaser.png"
+                  alt="SafeDiffusion-R1 safety-utility trade-off across GRPO reward and anchor variants."
+                  width="1600"
+                  height="827"
+                  decoding="async"
+                >
+              </picture>
+              <figcaption>
+                The curves track HPSv2 over GRPO post-training for different reward and anchor designs, with
+                GenEval, Nudity Rate, and Inappropriate rate annotated at key checkpoints. Static baselines
+                show SD v1.4, Safe-DPO, and RECE, while the steering variants reduce broader inappropriate
+                content and preserve utility even when trained mainly on nudity prompts.
+              </figcaption>
+            </figure>
+
+            <div class="hero-card" aria-label="Project summary">
+              <h2>TL;DR</h2>
+              <p>
+                SafeDiffusion-R1 safely unlearns unsafe visual concepts by steering the reward target,
+                not by filtering prompts or training a separate safety classifier. The model still sees
+                diverse prompts, but unsafe prompt embeddings are rewarded through a safe geometric direction.
+                The same direction also steers the text condition of a frozen SD v1.5 (TF-GRPO), which
+                learns only a direction and a prompt-dependent strength.
+              </p>
+              <div class="hero-metrics">
+                <div>
+                  <strong>18.07%</strong>
+                  <span>Inappropriate content<br>down from 48.9%</span>
+                </div>
+                <div>
+                  <strong>31 / 15</strong>
+                  <span>NudeNet detections<br>main / aggressive variant</span>
+                </div>
+                <div>
+                  <strong>47.83%</strong>
+                  <span>GenEval utility<br>up from 42.08%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="section metrics-band" aria-labelledby="headline-results">
+        <div class="content">
+          <div class="section-kicker">Headline results</div>
+          <h2 id="headline-results">Safer generations without sacrificing compositional utility</h2>
+          <div class="metric-grid">
+            <article class="metric-card">
+              <span class="metric-value">48.9% -> 18.07%</span>
+              <span class="metric-label">I2P inappropriate rate</span>
+              <p>Q16 overall inappropriate content rate for SD v1.4 compared with the main SafeDiffusion-R1 configuration.</p>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">646 -> 31</span>
+              <span class="metric-label">NudeNet detections</span>
+              <p>Main reported model on I2P nudity detection, using the paper's threshold 0.6 protocol.</p>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">646 -> 15</span>
+              <span class="metric-label">Aggressive unsafe-anchor variant</span>
+              <p>Lowest NudeNet detection count, with the paper's noted trade-off in broader OOD safety.</p>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">42.08% -> 47.83%</span>
+              <span class="metric-label">GenEval overall</span>
+              <p>Compositional generation improves when post-training with GenEval and nudity prompts.</p>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">637 -> 10</span>
+              <span class="metric-label">TF-GRPO NudeNet detections</span>
+              <p>Training-free on a frozen SD v1.5 (lambda = 0.01): no diffusion or reward-model weight is updated.</p>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">35.7% -> 4.68%</span>
+              <span class="metric-label">TF-GRPO I2P inappropriate rate</span>
+              <p>Q16 overall rate on frozen SD v1.5, lower than both fine-tuned variants in every harm category.</p>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">43.21%</span>
+              <span class="metric-label">TF-GRPO GenEval at lambda = 0.05</span>
+              <p>Back at the SD v1.5 level (42.83%) with 23 detections and a 6.78% inappropriate rate.</p>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">22.6% -> 2.6%</span>
+              <span class="metric-label">MMA-Diffusion attack success</span>
+              <p>Adversarial prompts (Q16-scored); SneakyPrompt attack success falls from 63.0% to 10.5%.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="video" aria-labelledby="video-title">
+        <div class="content">
+          <div class="section-kicker">Video</div>
+          <h2 id="video-title">Two-minute overview</h2>
+          <p class="lead">The safety direction, the steered reward, both training variants, and the main results.</p>
+          <figure class="figure-panel full-panel">
+            <video controls preload="metadata" playsinline poster="assets/img/video-poster.webp" style="width:100%;height:auto;border-radius:8px" aria-label="SafeDiffusion-R1 overview video">
+              <source src="assets/video/overview.mp4" type="video/mp4">
+            </video>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section" id="method" aria-labelledby="method-title">
+        <div class="content method-intro">
+          <div class="section-kicker">Method</div>
+          <h2 id="method-title">Reward steering in embedding space</h2>
+          <p class="lead">
+            SafeDiffusion-R1 keeps the original prompt as the model condition, but changes how unsafe prompts
+            are rewarded. It estimates a safety direction from safe and unsafe text anchors in HPSv2/CLIP
+            embedding space, then steers unsafe prompt embeddings toward that direction before computing
+            image-text reward.
+          </p>
+        </div>
+
+        <div class="content method-body">
+          <figure class="figure-panel">
+            <picture>
+              <source
+                srcset="assets/img/steering-960.webp 960w, assets/img/steering-1600.webp 1600w"
+                sizes="(max-width: 900px) 94vw, 48vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/steering.png"
+                alt="Embedding-space safety steering diagram showing unsafe text embeddings shifted toward a safe direction."
+                width="1600"
+                height="778"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>Safety is represented as a direction from unsafe anchors toward safe anchors.</figcaption>
+          </figure>
+
+          <div class="method-detail">
+            <p>
+              The online GRPO loop samples multiple images per prompt, scores them with the steering reward,
+              normalizes advantages within each prompt group, and applies a clipped policy objective with KL
+              regularization. This turns unsafe prompt exposure into a safety-learning signal instead of a
+              reward for matching unsafe content.
+            </p>
+            <ul class="check-list">
+              <li>No paired safe/unsafe image supervision required.</li>
+              <li>No separately fine-tuned safety reward model required.</li>
+              <li>Uses online policy samples rather than static offline generations.</li>
+              <li>Within a prompt group the steered reward ranks images by prompt alignment plus alpha times the image's safety projection, so alpha has a direct meaning.</li>
+              <li>Steering strength is set to alpha = 0.5 in the main experiments.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="content method-steps" aria-label="SafeDiffusion-R1 method steps">
+          <article>
+            <span>01</span>
+            <h3>Build a safety direction</h3>
+            <p>Safe and unsafe anchor phrases are embedded with HPSv2/CLIP; their normalized mean difference defines <code>v_safe</code>.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Steer reward targets</h3>
+            <p>Unsafe prompt embeddings are shifted toward <code>v_safe</code> only for reward computation, while the diffusion model still receives the original prompt.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Optimize on-policy</h3>
+            <p>GRPO samples multiple images per prompt, normalizes rewards within each prompt group, and updates the policy with tight clipping plus KL control.</p>
+          </article>
+        </div>
+
+        <div class="content wide-figure">
+          <figure>
+            <picture>
+              <source
+                srcset="assets/img/method-pipeline-960.webp 960w, assets/img/method-pipeline-1600.webp 1600w"
+                sizes="94vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/method-pipeline-1600.webp"
+                alt="SafeDiffusion-R1 GRPO reward steering pipeline from prompts and anchors to steered rewards and policy loss."
+                width="1600"
+                height="872"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>Online sampling, steered rewards, group-relative advantages, and policy optimization.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section" id="tfgrpo" aria-labelledby="tfgrpo-title">
+        <div class="content method-intro">
+          <div class="section-kicker">Training-free variant</div>
+          <h2 id="tfgrpo-title">TF-GRPO: steering a frozen generator</h2>
+          <p class="lead">
+            The steering operation e + alpha v is not tied to the reward space. TF-GRPO applies it to the text
+            condition of a frozen SD v1.5: a learned direction v_cond is added to every token embedding, scaled
+            by a prompt-dependent strength alpha(c) in [0, 1]. No diffusion or reward-model weight is updated.
+          </p>
+        </div>
+        <div class="content method-steps" aria-label="TF-GRPO steps">
+          <article>
+            <span>01</span>
+            <h3>Gradient-free update</h3>
+            <p>The K = 16 images of a prompt share one initial noise and differ only in antithetic Gaussian perturbations of the learned parameters. Group-relative advantages give an evolution-strategies gradient, followed by Adam; nothing is back-propagated through the UNet.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Stage 1: direction</h3>
+            <p>Learn v_cond with a first strength. On explicit prompts the alignment term favours the requested content, so the advantage for v_cond uses only the image-safety term.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Stage 2: prompt gate</h3>
+            <p>Freeze the direction and learn alpha(c) with reward r_steer - lambda alpha(c). A small lambda steers broadly; a larger lambda keeps steering off benign prompts.</p>
+          </article>
+        </div>
+        <div class="content metric-grid">
+          <article class="metric-card"><span class="metric-value">1,540</span><span class="metric-label">learned parameters (6 KB)</span><p>One vector is added to the text conditioning at inference; sampling cost equals SD v1.5.</p></article>
+          <article class="metric-card"><span class="metric-value">2.6-3.7 h</span><span class="metric-label">stage-2 GPU-hours per lambda</span><p>One A100, 400 steps with 4 prompts per step; memory use is that of fp16 inference.</p></article>
+          <article class="metric-card"><span class="metric-value">9,030</span><span class="metric-label">training prompts</span><p>7,103 compositional and 1,927 nudity prompts, the same as SafeDiffusion-R1.</p></article>
+        </div>
+        <div class="content wide-figure">
+          <figure>
+            <picture>
+              <source srcset="assets/img/lambda-curve-1600.webp 1600w" type="image/webp">
+              <img src="assets/img/lambda-curve.png" alt="Effect of the TF-GRPO steering cost lambda on NudeNet detections, Q16 rate, FID, CLIP-T and GenEval." width="1600" height="409" decoding="async">
+            </picture>
+            <figcaption>
+              Effect of the steering cost lambda (SD v1.5, single seed). Up to lambda = 0.05 TF-GRPO trades a few
+              detections for quality; from lambda = 0.06 the gate stays closed on most prompts and all metrics return
+              to the SD v1.5 level.
+              <a class="figure-link" href="assets/img/lambda-curve.png" target="_blank" rel="noopener">Open full-size</a>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section results-band" id="results" aria-labelledby="results-title">
+        <div class="content">
+          <div class="section-kicker">Results</div>
+          <h2 id="results-title">Safety and utility benchmarks</h2>
+          <p class="lead">
+            SafeDiffusion-R1 is evaluated on I2P safety metrics and GenEval compositional utility.
+            The main configuration improves broad inappropriate-content safety, while the aggressive
+            unsafe-anchor variant reports the lowest NudeNet detection count.
+          </p>
+
+          <div class="paper-table-grid">
+            <div class="table-wrap">
+              <table class="paper-table">
+                <caption>Nudity detection on I2P with NudeNet threshold 0.6; lower is better. TF-GRPO rows use a frozen SD v1.5 (637 detections); all other rows build on SD v1.4.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Method</th>
+                    <th scope="col">Breast F</th>
+                    <th scope="col">Genitalia F</th>
+                    <th scope="col">Breast M</th>
+                    <th scope="col">Genitalia M</th>
+                    <th scope="col">Buttocks</th>
+                    <th scope="col">Feet</th>
+                    <th scope="col">Belly</th>
+                    <th scope="col">Armpits</th>
+                    <th scope="col">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><th scope="row">SD v1.4</th><td>183</td><td>21</td><td>46</td><td>10</td><td>44</td><td>42</td><td>171</td><td>129</td><td>646</td></tr>
+                  <tr><th scope="row">DoCo</th><td>162</td><td>29</td><td>48</td><td>63</td><td>64</td><td>122</td><td>168</td><td>250</td><td>906</td></tr>
+                  <tr><th scope="row">Ablating, CA</th><td>298</td><td>22</td><td>67</td><td>7</td><td>45</td><td>66</td><td>180</td><td>153</td><td>838</td></tr>
+                  <tr><th scope="row">Safe-DPO SD2.1</th><td>88</td><td>13</td><td>19</td><td>2</td><td>14</td><td>54</td><td>110</td><td>125</td><td>425</td></tr>
+                  <tr><th scope="row">FMN</th><td>155</td><td>17</td><td>19</td><td>2</td><td>12</td><td>59</td><td>117</td><td>43</td><td>424</td></tr>
+                  <tr><th scope="row">ESD-x</th><td>101</td><td>6</td><td>16</td><td>10</td><td>12</td><td>37</td><td>77</td><td>53</td><td>312</td></tr>
+                  <tr><th scope="row">SLD-Med</th><td>39</td><td>1</td><td>26</td><td>3</td><td>3</td><td>21</td><td>72</td><td>47</td><td>212</td></tr>
+                  <tr><th scope="row">UCE</th><td>35</td><td>5</td><td>11</td><td>4</td><td>7</td><td>29</td><td>62</td><td>29</td><td>182</td></tr>
+                  <tr><th scope="row">SA</th><td>39</td><td>9</td><td>4</td><td>0</td><td>15</td><td>32</td><td>49</td><td>15</td><td>163</td></tr>
+                  <tr><th scope="row">ESD-u</th><td>14</td><td>1</td><td>8</td><td>5</td><td>5</td><td>24</td><td>31</td><td>33</td><td>121</td></tr>
+                  <tr><th scope="row">Receler</th><td>13</td><td>1</td><td>12</td><td>9</td><td>5</td><td>10</td><td>26</td><td>39</td><td>115</td></tr>
+                  <tr><th scope="row">MACE</th><td>16</td><td>0</td><td>9</td><td>7</td><td>2</td><td>39</td><td>19</td><td>17</td><td>109</td></tr>
+                  <tr><th scope="row">RECE</th><td>8</td><td>0</td><td>6</td><td>4</td><td>0</td><td>8</td><td>23</td><td>17</td><td>66</td></tr>
+                  <tr><th scope="row">CPE, one word</th><td>11</td><td>2</td><td>3</td><td>2</td><td>5</td><td>15</td><td>13</td><td>15</td><td>66</td></tr>
+                  <tr><th scope="row">CPE, four words</th><td>6</td><td>1</td><td>3</td><td>2</td><td>2</td><td>8</td><td>8</td><td>10</td><td>40</td></tr>
+                  <tr><th scope="row">AdvUnlearn</th><td>1</td><td>1</td><td>0</td><td>0</td><td>0</td><td>13</td><td>0</td><td>8</td><td>23</td></tr>
+                  <tr><th scope="row">SAeUron</th><td>4</td><td>0</td><td>0</td><td>1</td><td>3</td><td>2</td><td>1</td><td>7</td><td>18</td></tr>
+                  <tr><th scope="row">SafeDiffusion-R1, main</th><td>1</td><td>0</td><td>1</td><td>2</td><td>0</td><td>8</td><td>9</td><td>10</td><td>31</td></tr>
+                  <tr><th scope="row">SafeDiffusion-R1, unsafe-anchor variant</th><td>3</td><td>0</td><td>0</td><td>0</td><td>0</td><td>4</td><td>3</td><td>5</td><td>15</td></tr>
+                  <tr class="best-row"><th scope="row">TF-GRPO, lambda = 0.01 (frozen SD v1.5)</th><td>1</td><td>0</td><td>2</td><td>0</td><td>0</td><td>3</td><td>2</td><td>2</td><td>10</td></tr>
+                  <tr><th scope="row">TF-GRPO, lambda = 0.05 (frozen SD v1.5)</th><td>3</td><td>0</td><td>2</td><td>0</td><td>0</td><td>10</td><td>3</td><td>5</td><td>23</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-wrap">
+              <table class="paper-table">
+                <caption>OOD inappropriate content rate on I2P with Q16; lower is better. NS means not supported. SD v1.5 scores 35.70% overall.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Method</th>
+                    <th scope="col">Hate</th>
+                    <th scope="col">Harassment</th>
+                    <th scope="col">Violence</th>
+                    <th scope="col">Self-harm</th>
+                    <th scope="col">Sexual</th>
+                    <th scope="col">Shocking</th>
+                    <th scope="col">Illegal</th>
+                    <th scope="col">Overall</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><th scope="row">SD v1.4</th><td>44.2</td><td>37.5</td><td>46.3</td><td>47.9</td><td>60.2</td><td>59.5</td><td>40.0</td><td>48.9</td></tr>
+                  <tr><th scope="row">EraseDiff</th><td>NS</td><td>NS</td><td>NS</td><td>40.6</td><td>49.8</td><td>49.4</td><td>NS</td><td>44.9</td></tr>
+                  <tr><th scope="row">SPM</th><td>NS</td><td>NS</td><td>NS</td><td>15.88</td><td>52.5</td><td>69.1</td><td>NS</td><td>54.6</td></tr>
+                  <tr><th scope="row">FMN</th><td>37.7</td><td>25.0</td><td>47.8</td><td>46.8</td><td>59.1</td><td>58.1</td><td>37.0</td><td>47.8</td></tr>
+                  <tr><th scope="row">Ablating</th><td>40.8</td><td>32.9</td><td>43.3</td><td>47.4</td><td>60.3</td><td>57.8</td><td>37.9</td><td>45.9</td></tr>
+                  <tr><th scope="row">ESD-x</th><td>34.1</td><td>30.2</td><td>40.5</td><td>36.8</td><td>40.2</td><td>45.2</td><td>28.9</td><td>36.6</td></tr>
+                  <tr><th scope="row">SLD</th><td>22.5</td><td>22.1</td><td>31.8</td><td>30.0</td><td>52.4</td><td>40.5</td><td>22.1</td><td>33.7</td></tr>
+                  <tr><th scope="row">ESD-u</th><td>26.8</td><td>24.0</td><td>35.1</td><td>33.7</td><td>35.0</td><td>40.1</td><td>26.7</td><td>32.8</td></tr>
+                  <tr><th scope="row">UCE</th><td>36.4</td><td>29.5</td><td>34.1</td><td>30.8</td><td>25.5</td><td>41.1</td><td>29.0</td><td>31.3</td></tr>
+                  <tr><th scope="row">Receler</th><td>28.6</td><td>21.7</td><td>27.1</td><td>24.8</td><td>29.4</td><td>34.8</td><td>21.3</td><td>27.0</td></tr>
+                  <tr><th scope="row">CASTEER</th><td>29.00</td><td>25.61</td><td>27.78</td><td>26.22</td><td>20.73</td><td>34.00</td><td>17.61</td><td>25.58</td></tr>
+                  <tr><th scope="row">Safe-DPO</th><td>NS</td><td>22.59</td><td>32.43</td><td>33.33</td><td>20.7</td><td>NS</td><td>30.30</td><td>19.82</td></tr>
+                  <tr><th scope="row">SafeDiffusion-R1</th><td>16.02</td><td>25.12</td><td>17.33</td><td>15.86</td><td>11.60</td><td>14.60</td><td>26.00</td><td>18.07</td></tr>
+                  <tr><th scope="row">SafeDiffusion-R1, unsafe-anchor variant</th><td>30.74</td><td>39.56</td><td>32.01</td><td>36.83</td><td>27.18</td><td>26.17</td><td>40.44</td><td>33.43</td></tr>
+                  <tr class="best-row"><th scope="row">TF-GRPO, lambda = 0.01 (frozen SD v1.5)</th><td>3.46</td><td>4.73</td><td>8.86</td><td>2.62</td><td>2.36</td><td>7.59</td><td>2.34</td><td>4.68</td></tr>
+                  <tr><th scope="row">TF-GRPO, lambda = 0.05 (frozen SD v1.5)</th><td>4.76</td><td>5.83</td><td>14.02</td><td>4.24</td><td>3.33</td><td>9.70</td><td>3.85</td><td>6.78</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="utility-grid">
+            <div class="table-wrap">
+              <table>
+                <caption>Task-wise GenEval accuracy, higher is better. TF-GRPO runs on frozen SD v1.5 (42.83% overall).</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Task</th>
+                    <th scope="col">SD1.4</th>
+                    <th scope="col">RECE</th>
+                    <th scope="col">SD-Safe</th>
+                    <th scope="col">R1, GenEval + nudity</th>
+                    <th scope="col">R1, nudity only</th>
+                    <th scope="col">TF-GRPO, lambda = 0.05</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><th scope="row">single_object</th><td>97.81%</td><td>94.69%</td><td>97.19%</td><td>99.06%</td><td>96.88%</td><td>97.19%</td></tr>
+                  <tr><th scope="row">two_object</th><td>39.65%</td><td>27.02%</td><td>38.64%</td><td>61.36%</td><td>43.94%</td><td>41.41%</td></tr>
+                  <tr><th scope="row">counting</th><td>31.56%</td><td>29.69%</td><td>34.38%</td><td>30.00%</td><td>35.00%</td><td>34.38%</td></tr>
+                  <tr><th scope="row">colors</th><td>74.73%</td><td>71.01%</td><td>77.13%</td><td>76.33%</td><td>78.19%</td><td>75.27%</td></tr>
+                  <tr><th scope="row">position</th><td>3.00%</td><td>4.00%</td><td>3.00%</td><td>9.75%</td><td>4.00%</td><td>3.75%</td></tr>
+                  <tr><th scope="row">color_attr</th><td>5.75%</td><td>3.75%</td><td>5.00%</td><td>10.50%</td><td>6.75%</td><td>7.25%</td></tr>
+                  <tr class="best-row"><th scope="row">Overall</th><td>42.08%</td><td>38.36%</td><td>42.55%</td><td>47.83%</td><td>44.12%</td><td>43.21%</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <caption>CLIP-T and FID on COCO-3K for nudity-erased models. TF-GRPO is training-free on SD v1.5 (0.315 / 37.12).</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Model</th>
+                    <th scope="col">CLIP-T</th>
+                    <th scope="col">FID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><th scope="row">Baseline SD1.4</th><td>0.313</td><td>37.35</td></tr>
+                  <tr><th scope="row">EraseDiff</th><td>0.179</td><td>307.70</td></tr>
+                  <tr><th scope="row">ESD</th><td>0.303</td><td>40.73</td></tr>
+                  <tr><th scope="row">FMN</th><td>0.311</td><td>38.10</td></tr>
+                  <tr><th scope="row">Salun</th><td>0.282</td><td>70.96</td></tr>
+                  <tr><th scope="row">Scissorhands</th><td>0.223</td><td>172.88</td></tr>
+                  <tr><th scope="row">SPM</th><td>0.312</td><td>38.05</td></tr>
+                  <tr><th scope="row">UCE</th><td>0.311</td><td>37.41</td></tr>
+                  <tr class="best-row"><th scope="row">SafeDiffusion-R1</th><td>0.311</td><td>52.28</td></tr>
+                  <tr><th scope="row">R1, unsafe-anchor variant</th><td>0.313</td><td>48.50</td></tr>
+                  <tr><th scope="row">TF-GRPO, lambda = 0.01</th><td>0.301</td><td>48.06</td></tr>
+                  <tr><th scope="row">TF-GRPO, lambda = 0.05</th><td>0.306</td><td>40.83</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="content">
+          <div class="section-kicker">Robustness</div>
+          <h3>Adversarial prompts, anchor wording and other text encoders</h3>
+          <div class="utility-grid">
+            <div class="table-wrap">
+              <table>
+                <caption>Attack success rate (%) on adversarial benchmarks, lower is better. Q16 for MMA-Diffusion; SD safety checker for SneakyPrompt.</caption>
+                <thead><tr><th scope="col">Model</th><th scope="col">MMA-D (Q16)</th><th scope="col">SneakyPrompt RL</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">SD v1.5 (no defence)</th><td>22.60</td><td>63.0</td></tr>
+                  <tr><th scope="row">GRPO, SafeCLIP reward</th><td>18.10</td><td>44.0</td></tr>
+                  <tr class="best-row"><th scope="row">Steering, Compact anchors (5+3)</th><td>2.60</td><td>10.5</td></tr>
+                  <tr><th scope="row">Steering, unsafe anchors only (0+3)</th><td>11.80</td><td>12.5</td></tr>
+                  <tr><th scope="row">Steering, Scaled anchors (25+20)</th><td>4.30</td><td>11.5</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <caption>Robustness of the safety direction: 20 random anchor sets (8 safe / 8 unsafe from 30+30 paraphrases), and the unsafe/benign split in other text encoders (AUC).</caption>
+                <thead><tr><th scope="col">Check</th><th scope="col">SneakyPrompt</th><th scope="col">I2P</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Anchor sets: direction cosine</th><td colspan="2">0.804 +/- 0.047</td></tr>
+                  <tr><th scope="row">Anchor sets: NSFW/benign AUC</th><td colspan="2">0.971 +/- 0.027</td></tr>
+                  <tr><th scope="row">CLIP-L/14 (SD 1.x / SDXL)</th><td>0.96</td><td>0.96</td></tr>
+                  <tr><th scope="row">OpenCLIP-H/14 (SD 2.x)</th><td>0.97</td><td>0.90</td></tr>
+                  <tr class="best-row"><th scope="row">T5-XXL (SD3 / Flux)</th><td>0.99</td><td>0.92</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="ablation" aria-labelledby="ablation-title">
+        <div class="content">
+          <div class="section-kicker">Ablation</div>
+          <h2 id="ablation-title">Why steering reward is the stable choice</h2>
+          <p class="lead">
+            The paper studies scheduler choice, reward design, anchor construction, and steering strength.
+            The pattern is consistent: direct negative penalties suppress unsafe content but damage utility,
+            while geometric steering keeps the reward informative for both unsafe and benign prompts.
+          </p>
+        </div>
+
+        <div class="content insight-grid">
+          <article class="insight-card">
+            <span class="insight-number">0.002</span>
+            <h3>Lowest MeanUnsafe</h3>
+            <p>Steering reward reaches MeanUnsafe 0.002 while keeping CLIP-T at 28.74, outperforming SafeCLIP and LLaVA-penalty variants.</p>
+          </article>
+          <article class="insight-card">
+            <span class="insight-number">alpha = 0.5</span>
+            <h3>Moderate steering</h3>
+            <p>Benign reward stays within 1.3% up to alpha = 0.3 and drops 3.3% at alpha = 0.5, while the NSFW reward drops 19.5%; the benign-NSFW margin doubles (0.036 to 0.070).</p>
+          </article>
+          <article class="insight-card">
+            <span class="insight-number">9 schedulers</span>
+            <h3>Robust inference</h3>
+            <p>With safety steering, multiple schedulers converge toward near-zero unsafe score by epoch 300.</p>
+          </article>
+        </div>
+
+        <div class="content ablation-table">
+          <div class="table-wrap">
+            <table>
+              <caption>Reward design ablation, lower MeanUnsafe is better.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Reward</th>
+                  <th scope="col">CLIP-T</th>
+                  <th scope="col">MeanUnsafe</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Base SD v1.4</th>
+                  <td>27.07</td>
+                  <td>0.990</td>
+                </tr>
+                <tr>
+                  <th scope="row">SafeCLIP, 7K positive</th>
+                  <td>28.76</td>
+                  <td>0.246</td>
+                </tr>
+                <tr>
+                  <th scope="row">SafeCLIP + LLaVA penalty</th>
+                  <td>28.44</td>
+                  <td>0.151</td>
+                </tr>
+                <tr>
+                  <th scope="row">-1 x CLIP, negative only</th>
+                  <td>23.31</td>
+                  <td>0.018</td>
+                </tr>
+                <tr class="best-row">
+                  <th scope="row">Steering reward</th>
+                  <td>28.74</td>
+                  <td>0.002</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="content ablation-stack">
+          <article class="story-block">
+            <div class="story-copy">
+              <div class="section-kicker">Steering strength</div>
+              <h3>Anchors move prompts toward safety without collapsing geometry</h3>
+              <p>
+                UMAP visualizations show that synonyms, keyword-minimal prompts, and negations are all pushed
+                toward the safe side as steering strength increases. The important behavior is not just higher
+                safe score; the relative separation between safe and unsafe prompts remains useful.
+              </p>
+            </div>
+            <figure class="figure-panel wide-panel">
+              <picture>
+                <source
+                  srcset="assets/img/steering-analysis-960.webp 960w, assets/img/steering-analysis-1600.webp 1600w"
+                  sizes="(max-width: 900px) 94vw, 56vw"
+                  type="image/webp"
+                >
+                <img
+                  src="assets/img/steering-analysis-1600.webp"
+                  alt="UMAP and safety score analysis for steering strength across prompt perturbation strategies."
+                  width="1600"
+                  height="661"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </picture>
+              <figcaption>
+                Prompt steering remains consistent across synonyms, minimal keywords, and negation.
+                <a class="figure-link" href="assets/img/steering-analysis-1600.webp" target="_blank" rel="noopener">Open full-size</a>
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="story-block reverse">
+            <div class="story-copy">
+              <div class="section-kicker">Reward design</div>
+              <h3>Negative-only reward is safe but not useful</h3>
+              <p>
+                A pure negative CLIP penalty can drive unsafe score down, but this comparison shows utility collapse:
+                CLIP-T drops to 23.31 and FID rises to 167.49. Steering reward avoids that failure mode by using
+                positive and negative anchors to define a direction rather than only punishing unsafe alignment.
+              </p>
+            </div>
+            <figure class="figure-panel wide-panel">
+              <picture>
+                <source
+                  srcset="assets/img/safeclip-utility-960.webp 960w, assets/img/safeclip-utility-1600.webp 1600w"
+                  sizes="(max-width: 900px) 94vw, 56vw"
+                  type="image/webp"
+                >
+                <img
+                  src="assets/img/safeclip-utility.png"
+                  alt="Utility comparison of SafeCLIP variants and steering reward on benign prompts."
+                  width="1600"
+                  height="543"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </picture>
+            <figcaption>
+              Utility comparison: steering reward preserves benign prompt quality more reliably than weaker reward variants.
+              <a class="figure-link" href="assets/img/safeclip-utility-1600.webp" target="_blank" rel="noopener">Open full-size</a>
+            </figcaption>
+            </figure>
+          </article>
+
+          <article class="story-block">
+            <div class="story-copy">
+              <div class="section-kicker">Sensitivity to alpha</div>
+              <h3>A moderate alpha separates unsafe images without reordering benign ones</h3>
+              <p>
+                Steered reward of SD v1.5 images for 200 benign GenEval prompts and 180 NSFW prompts as alpha grows.
+                Up to alpha = 0.5 the benign reward barely moves while the NSFW reward falls steadily; beyond that
+                the benign reward drops too (18% at alpha = 1), which supports alpha = 0.5.
+              </p>
+            </div>
+            <figure class="figure-panel wide-panel">
+              <img src="assets/img/alpha-sensitivity.png" alt="Steered reward versus steering strength alpha for benign and NSFW prompts." decoding="async">
+              <figcaption>Steered reward vs. steering strength alpha (mean and spread over prompts).</figcaption>
+            </figure>
+          </article>
+
+          <article class="story-block reverse">
+            <div class="story-copy">
+              <div class="section-kicker">Schedulers</div>
+              <h3>Safety becomes less sensitive to sampler choice</h3>
+              <p>
+                Without steering, unsafe scores remain high and scheduler-dependent. With steering, the gap
+                between nine schedulers largely disappears as training progresses, indicating that safety is
+                learned by the model rather than patched at inference.
+              </p>
+            </div>
+            <div class="paired-figures scheduler-figures">
+              <figure class="figure-panel">
+                <picture>
+                  <source srcset="assets/img/unsafe-normal-reward-900.webp 900w" sizes="(max-width: 900px) 94vw, 27vw" type="image/webp">
+                  <img
+                    src="assets/img/unsafe-normal-reward.png"
+                    alt="Unsafe score without safety steering stays high across training."
+                    width="900"
+                    height="825"
+                    loading="lazy"
+                    decoding="async"
+                  >
+                </picture>
+                <figcaption>Without steering, unsafe score remains high.</figcaption>
+              </figure>
+              <figure class="figure-panel">
+                <picture>
+                  <source
+                    srcset="assets/img/scheduler-ablation-960.webp 960w, assets/img/scheduler-ablation-1200.webp 1200w"
+                    sizes="(max-width: 900px) 94vw, 27vw"
+                    type="image/webp"
+                  >
+                  <img
+                    src="assets/img/scheduler-ablation.png"
+                    alt="Scheduler ablation showing unsafe score decreases over training epochs for multiple schedulers."
+                    width="1200"
+                    height="739"
+                    loading="lazy"
+                    decoding="async"
+                  >
+                </picture>
+                <figcaption>With steering, schedulers converge near zero.</figcaption>
+              </figure>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section qualitative-band" id="qualitative" aria-labelledby="qualitative-title">
+        <div class="content">
+          <div class="section-kicker">Qualitative results</div>
+          <h2 id="qualitative-title">Safety suppression with utility preservation</h2>
+          <p class="lead">
+            Paper qualitative examples show how SafeDiffusion-R1 suppresses unsafe visual concepts while
+            preserving benign composition, color attributes, and spatial relations across checkpoints and
+            prompt categories.
+          </p>
+          <p class="figure-note">
+            The first grid compares SafeDiffusion-R1 with prior safety and erasure methods on the same
+            challenging prompts, making it easier to judge whether the unsafe concept is removed without
+            destroying the intended scene.
+          </p>
+        </div>
+
+        <div class="content qualitative-layout">
+          <figure class="figure-panel full-panel qualitative-paper-figure">
+            <picture>
+              <source
+                srcset="assets/img/qualitative-full-960.webp 960w, assets/img/qualitative-full-1600.webp 1600w"
+                sizes="94vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/qualitative-full.png"
+                alt="Full paper qualitative comparison showing outputs before and after SafeDiffusion-R1 safety post-training."
+                width="1800"
+                height="526"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>
+              Method-by-method qualitative comparison: the Ours column suppresses unsafe concepts while keeping the scene coherent.
+              <a class="figure-link" href="assets/img/qualitative-full-1600.webp" target="_blank" rel="noopener">Open full-size</a>
+            </figcaption>
+          </figure>
+
+          <figure class="figure-panel full-panel">
+            <picture>
+              <source
+                srcset="assets/img/geneval-qualitative-960.webp 960w, assets/img/geneval-qualitative-1600.webp 1600w"
+                sizes="94vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/geneval-qualitative.png"
+                alt="Benign GenEval qualitative comparison showing compositional prompt outputs across methods."
+                width="1600"
+                height="756"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>
+              Benign GenEval-style prompts: SafeDiffusion-R1 keeps semantic structure and visual coherence.
+              <a class="figure-link" href="assets/img/geneval-qualitative-1600.webp" target="_blank" rel="noopener">Open full-size</a>
+            </figcaption>
+          </figure>
+
+          <figure class="figure-panel">
+            <picture>
+              <source
+                srcset="assets/img/steering-utility-960.webp 960w, assets/img/steering-utility-1600.webp 1600w"
+                sizes="(max-width: 900px) 94vw, 44vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/steering-utility.png"
+                alt="Utility preservation across SafeDiffusion-R1 training checkpoints on benign prompts."
+                width="1600"
+                height="1223"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>Training progression: compositional utility is preserved across checkpoints.</figcaption>
+          </figure>
+
+          <figure class="figure-panel">
+            <picture>
+              <source
+                srcset="assets/img/ood-safety-960.webp 960w, assets/img/ood-safety-1600.webp 1600w"
+                sizes="(max-width: 900px) 94vw, 44vw"
+                type="image/webp"
+              >
+              <img
+                src="assets/img/ood-safety.png"
+                alt="OOD inappropriate content category progression across harm classes."
+                width="1600"
+                height="751"
+                loading="lazy"
+                decoding="async"
+              >
+            </picture>
+            <figcaption>Category progression supports OOD generalization beyond nudity prompts.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="site-footer">
+      <div class="content footer-content">
+        <p>SafeDiffusion-R1 anonymous project page. Author names and affiliations are withheld for double-blind review.</p>
+      </div>
+    </footer>
+
+    <script src="assets/js/site.js" defer></script>
+  </body>
+</html>
